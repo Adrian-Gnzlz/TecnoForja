@@ -4,8 +4,8 @@
   "description": "Backend de la plataforma web TecnoForja para gestión de catálogo, citas y pagos.",
   "main": "src/app.js",
   "scripts": {
-    "start": "node src/app.js",
-    "dev": "nodemon src/app.js"
+    "start": "node backend/src/app.js",
+    "dev": "nodemon backend/src/app.js"
   },
   "keywords": [],
   "author": "TecnoForja",

@@ -1,0 +1,10 @@
+/* Estilos básicos adicionales (la mayoría del diseño viene de Tailwind) */
+
+body {
+    font-family: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+}
+
+/* Clase de apoyo para enlaces del menú, por si quieres extender algo después */
+.nav-link {
+    text-decoration: none;
+}

@@ -15,6 +15,17 @@ const productsLocal = [
 const appointments = [];
 const payments = [];
 
+// Estados internos del flujo de trabajo del taller (solo frontend)
+const JOB_STATUS_OPTIONS = [
+    "Pendiente de visita",
+    "Visitado",
+    "En fabricación",
+    "Listo para instalar",
+    "Terminado",
+    "Cancelado"
+];
+
+
 function generateAppointmentFolio(id, dateStr) {
     // dateStr viene normalmente en formato "YYYY-MM-DD"
     let year = "";
@@ -67,43 +78,63 @@ function formatDateForDisplay(dateStr) {
     if (!dateStr) return "";
 
     try {
-        // Si viene como "2025-11-30T12:34:56.000Z"
-        if (dateStr.includes("T")) {
-            const dateObj = new Date(dateStr);
-            if (!isNaN(dateObj)) {
-                return dateObj.toLocaleDateString("es-MX", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric"
-                });
+        const options = {
+            day: "2-digit",
+            month: "long",
+            year: "numeric"
+        };
+
+        // Si ya es un Date, lo usamos directo
+        if (dateStr instanceof Date) {
+            if (!isNaN(dateStr)) {
+                return dateStr.toLocaleDateString("es-MX", options);
             }
         }
 
-        // Si viene como "2025-11-30"
-        const parts = dateStr.split("-");
-        if (parts.length === 3) {
-            const [year, month, day] = parts;
+        const raw = String(dateStr);
+
+        // Si viene como "2026-01-03T00:00:00.000Z" → nos quedamos solo con "2026-01-03"
+        let base = raw;
+        if (raw.includes("T")) {
+            base = raw.split("T")[0];
+        }
+
+        // Si viene como "2026-01-03"
+        const isoParts = base.split("-");
+        if (isoParts.length === 3) {
+            const [year, month, day] = isoParts;
             const dateObj = new Date(
                 parseInt(year, 10),
                 parseInt(month, 10) - 1,
                 parseInt(day, 10)
             );
-
             if (!isNaN(dateObj)) {
-                return dateObj.toLocaleDateString("es-MX", {
-                    day: "2-digit",
-                    month: "long",
-                    year: "numeric"
-                });
+                return dateObj.toLocaleDateString("es-MX", options);
+            }
+        }
+
+        // Si viene como "03/01/2026"
+        if (raw.includes("/")) {
+            const [dd, mm, yyyy] = raw.split("/");
+            if (dd && mm && yyyy) {
+                const dateObj = new Date(
+                    parseInt(yyyy, 10),
+                    parseInt(mm, 10) - 1,
+                    parseInt(dd, 10)
+                );
+                if (!isNaN(dateObj)) {
+                    return dateObj.toLocaleDateString("es-MX", options);
+                }
             }
         }
 
         // Si no se pudo interpretar, se regresa tal cual
-        return dateStr;
+        return raw;
     } catch (e) {
-        return dateStr;
+        return String(dateStr);
     }
 }
+
 
 function allowOnlyLetters(input) {
     input.addEventListener("input", function () {
@@ -389,8 +420,11 @@ async function createAppointmentFromForm() {
             address: saved.address,
             comments: saved.comments,
             estimatedAmount: saved.estimatedAmount,
-            status: saved.status
+            status: saved.status,          // estado general (registrada / con pago)
+            jobStatus: "Pendiente de visita", // flujo interno del taller
+            internalNote: ""                  // notas solo para admin
         };
+
 
 
         appointments.push(appointment);
@@ -406,6 +440,43 @@ async function createAppointmentFromForm() {
     }
 }
 
+// Convierte cualquier valor de fecha a "YYYY-MM-DD" para comparar sin errores de zona horaria
+function normalizarFechaYYYYMMDD(valor) {
+    if (!valor) return "";
+
+    // Si ya es Date
+    if (valor instanceof Date) {
+        const y = valor.getFullYear();
+        const m = String(valor.getMonth() + 1).padStart(2, "0");
+        const d = String(valor.getDate()).padStart(2, "0");
+        return `${y}-${m}-${d}`;
+    }
+
+    const str = String(valor);
+
+    // Si viene como "2026-01-03T00:00:00.000Z"
+    if (str.includes("T")) {
+        return str.split("T")[0]; // "2026-01-03"
+    }
+
+    // Si viene como "2026-01-03"
+    if (/^\d{4}-\d{2}-\d{2}$/.test(str)) {
+        return str;
+    }
+
+    // Si viene como "03/01/2026"
+    if (str.includes("/")) {
+        const [dd, mm, yyyy] = str.split("/");
+        if (dd && mm && yyyy) {
+            return `${yyyy}-${mm.padStart(2, "0")}-${dd.padStart(2, "0")}`;
+        }
+    }
+
+    return str;
+}
+
+
+
 function renderAppointmentsTable() {
     const tbody = document.getElementById("appointmentsTableBody");
     const emptyLabel = document.getElementById("appointmentsEmpty");
@@ -413,51 +484,137 @@ function renderAppointmentsTable() {
 
     tbody.innerHTML = "";
 
-    if (appointments.length === 0) {
+    // Leer filtros
+    const dateFilterInput = document.getElementById("adminFilterDate");
+    const jobStatusFilterSelect = document.getElementById("adminFilterJobStatus");
+    const paymentStatusFilterSelect = document.getElementById("adminFilterPaymentStatus");
+
+    const dateFilter = dateFilterInput && dateFilterInput.value ? dateFilterInput.value : "";
+    const jobStatusFilter = jobStatusFilterSelect ? jobStatusFilterSelect.value : "todos";
+    const paymentStatusFilter = paymentStatusFilterSelect ? paymentStatusFilterSelect.value : "todos";
+
+    // Aplicar filtros
+    const filtered = appointments.filter(app => {
+        // Filtrar por fecha exacta usando formato normalizado YYYY-MM-DD
+        if (dateFilter) {
+            const fechaFiltro = dateFilter;           // valor del input date (YYYY-MM-DD)
+            const fechaCita = normalizarFechaYYYYMMDD(app.date);
+
+            if (fechaCita !== fechaFiltro) {
+                return false;
+            }
+        }
+
+
+        // Filtrar por estado del trabajo
+        if (jobStatusFilter !== "todos") {
+            const js = app.jobStatus || "Pendiente de visita";
+            if (js !== jobStatusFilter) return false;
+        }
+
+        // Filtrar por estado de pago
+        const paymentStatus = getPaymentStatusForAppointment(app.id);
+        if (paymentStatusFilter === "sinPago" && paymentStatus !== "Sin pago registrado") {
+            return false;
+        }
+        if (paymentStatusFilter === "conPago" && paymentStatus !== "Con pago registrado") {
+            return false;
+        }
+
+        return true;
+    });
+
+    if (filtered.length === 0) {
         emptyLabel.classList.remove("hidden");
         return;
     }
 
     emptyLabel.classList.add("hidden");
 
-    appointments.forEach(app => {
+    filtered.forEach(app => {
         const tr = document.createElement("tr");
 
         const tdDate = document.createElement("td");
-        tdDate.className = "px-3 py-2";
+        tdDate.className = "px-3 py-2 whitespace-nowrap";
         tdDate.textContent = formatDateForDisplay(app.date);
 
-
         const tdTime = document.createElement("td");
-        tdTime.className = "px-3 py-2";
+        tdTime.className = "px-3 py-2 whitespace-nowrap";
         tdTime.textContent = app.time;
 
+        const tdFolio = document.createElement("td");
+        tdFolio.className = "px-3 py-2 whitespace-nowrap";
+        tdFolio.textContent = app.folio || generateAppointmentFolio(app.id, app.date);
+
         const tdClient = document.createElement("td");
-        tdClient.className = "px-3 py-2";
+        tdClient.className = "px-3 py-2 whitespace-nowrap";
         tdClient.textContent = app.clientName;
 
         const tdPhone = document.createElement("td");
-        tdPhone.className = "px-3 py-2";
+        tdPhone.className = "px-3 py-2 whitespace-nowrap";
         tdPhone.textContent = app.phone;
 
-        const tdAmount = document.createElement("td");
-        tdAmount.className = "px-3 py-2";
-        tdAmount.textContent = "$" + (app.estimatedAmount || 0).toLocaleString("es-MX") + " MXN";
+        const tdAddress = document.createElement("td");
+        tdAddress.className = "px-3 py-2 hidden lg:table-cell";
+        tdAddress.textContent = app.address || "";
 
-        const tdStatus = document.createElement("td");
-        tdStatus.className = "px-3 py-2";
-        tdStatus.textContent = app.status;
+        const tdAmount = document.createElement("td");
+        tdAmount.className = "px-3 py-2 whitespace-nowrap";
+        tdAmount.textContent =
+            "$" + (app.estimatedAmount || 0).toLocaleString("es-MX") + " MXN";
+
+        // Estado del trabajo (select)
+        const tdJobStatus = document.createElement("td");
+        tdJobStatus.className = "px-3 py-2 whitespace-nowrap";
+        const select = document.createElement("select");
+        select.className =
+            "admin-job-status border border-gray-300 rounded-sm px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-700";
+        select.dataset.appId = app.id;
+
+        JOB_STATUS_OPTIONS.forEach(opt => {
+            const optionEl = document.createElement("option");
+            optionEl.value = opt;
+            optionEl.textContent = opt;
+            select.appendChild(optionEl);
+        });
+
+        select.value = app.jobStatus || "Pendiente de visita";
+        tdJobStatus.appendChild(select);
+
+        // Estado de pago
+        const tdPaymentStatus = document.createElement("td");
+        tdPaymentStatus.className = "px-3 py-2 whitespace-nowrap";
+        const paymentStatus = getPaymentStatusForAppointment(app.id);
+        tdPaymentStatus.textContent = paymentStatus;
+
+        // Notas internas
+        const tdNotes = document.createElement("td");
+        tdNotes.className = "px-3 py-2 whitespace-nowrap";
+        const notesBtn = document.createElement("button");
+        notesBtn.type = "button";
+        notesBtn.className =
+            "admin-note-btn text-xs text-gray-700 border border-gray-300 rounded-sm px-2 py-1 hover:bg-gray-100 transition-colors duration-300";
+        notesBtn.dataset.appId = app.id;
+        notesBtn.textContent = app.internalNote && app.internalNote.trim() !== ""
+            ? "Ver / editar"
+            : "Agregar nota";
+        tdNotes.appendChild(notesBtn);
 
         tr.appendChild(tdDate);
         tr.appendChild(tdTime);
+        tr.appendChild(tdFolio);
         tr.appendChild(tdClient);
         tr.appendChild(tdPhone);
+        tr.appendChild(tdAddress);
         tr.appendChild(tdAmount);
-        tr.appendChild(tdStatus);
+        tr.appendChild(tdJobStatus);
+        tr.appendChild(tdPaymentStatus);
+        tr.appendChild(tdNotes);
 
         tbody.appendChild(tr);
     });
 }
+
 
 function renderPaymentsTable() {
     const tbody = document.getElementById("paymentsTableBody");
@@ -506,6 +663,13 @@ function renderPaymentsTable() {
         tbody.appendChild(tr);
     });
 }
+
+function getPaymentStatusForAppointment(appointmentId) {
+    // Busca si hay algún pago registrado para esta cita
+    const hasPayment = payments.some(p => p.appointmentId === appointmentId && p.status);
+    return hasPayment ? "Con pago registrado" : "Sin pago registrado";
+}
+
 
 function preparePaymentModal(appointment) {
     const summaryEl = document.getElementById("paymentAppointmentSummary");
@@ -724,7 +888,9 @@ async function loadAppointmentsFromServer() {
                 address: a.address,
                 comments: a.comments,
                 estimatedAmount: a.estimatedAmount,
-                status: a.status
+                status: a.status,
+                jobStatus: "Pendiente de visita",
+                internalNote: ""
             });
         });
 
@@ -769,6 +935,195 @@ async function loadAdminData() {
     await loadAppointmentsFromServer();
     await loadPaymentsFromServer();
 }
+
+// Tour de ayuda (tarjetas dinámicas)
+// ------------------------------
+
+let onboardingSteps = [
+    {
+        selector: "#servicios",
+        title: "Catálogo de servicios",
+        text: "Aquí puedes ver los trabajos que realiza el taller: bases para tinacos, puertas, ventanas, rejas y portones. Usa los botones de “Agregar” o “Cotizar” para ir llenando tu carrito de cotización.",
+        position: "bottom"
+    },
+    {
+        selector: "#openCart",
+        title: "Carrito de cotización",
+        text: "Este botón abre tu carrito. Ahí verás un resumen de los trabajos seleccionados y el total estimado. Desde el carrito puedes continuar para agendar tu cita.",
+        position: "bottom"
+    },
+    {
+        selector: "#existingAppointmentForm",
+        title: "Pagar una cita ya registrada",
+        text: "Si ya agendaste una cita antes, aquí puedes ingresar el folio de la cita y el teléfono registrado para buscarla y registrar el pago más adelante.",
+        position: "top"
+    },
+    {
+        selector: "#openAdminLogin",
+        title: "Panel administrativo del taller",
+        text: "Desde este acceso, solo el personal del taller revisa citas, pagos registrados y el funcionamiento general del sistema.",
+        position: "left"
+    }
+];
+
+
+let currentOnboardingStep = 0;
+let highlightedElement = null;
+
+function highlightElement(element) {
+    if (highlightedElement) {
+        highlightedElement.classList.remove(
+            "ring-4",
+            "ring-offset-2",
+            "ring-indigo-500",
+            "ring-offset-transparent"
+        );
+    }
+    highlightedElement = element;
+    if (highlightedElement) {
+        highlightedElement.classList.add(
+            "ring-4",
+            "ring-offset-2",
+            "ring-indigo-500",
+            "ring-offset-transparent"
+        );
+    }
+}
+
+function positionOnboardingCard(step) {
+    const card = document.getElementById("onboardingCard");
+    if (!card || !step) return;
+
+    const target = document.querySelector(step.selector);
+    if (!target) return;
+
+    // Coordenadas del elemento en la ventana
+    const rect = target.getBoundingClientRect();
+
+    const cardRect = card.getBoundingClientRect();
+    let top = 0;
+    let left = 0;
+
+    switch (step.position) {
+        case "top":
+            top = rect.top - cardRect.height - 16;
+            left = rect.left + rect.width / 2 - cardRect.width / 2;
+            break;
+        case "left":
+            top = rect.top + rect.height / 2 - cardRect.height / 2;
+            left = rect.left - cardRect.width - 16;
+            break;
+        case "right":
+            top = rect.top + rect.height / 2 - cardRect.height / 2;
+            left = rect.right + 16;
+            break;
+        case "bottom":
+        default:
+            top = rect.bottom + 16;
+            left = rect.left + rect.width / 2 - cardRect.width / 2;
+            break;
+    }
+
+    const padding = 8;
+    const maxLeft = window.innerWidth - cardRect.width - padding;
+    const maxTop = window.innerHeight - cardRect.height - padding;
+
+    if (left < padding) left = padding;
+    if (left > maxLeft) left = maxLeft;
+    if (top < padding) top = padding;
+    if (top > maxTop) top = maxTop;
+
+    // Ojo: como el overlay es fixed, usamos coordenadas de ventana, sin scrollY/scrollX
+    card.style.top = top + "px";
+    card.style.left = left + "px";
+}
+
+
+function showOnboardingStep(index) {
+    const overlay = document.getElementById("onboardingOverlay");
+    const titleEl = document.getElementById("onboardingTitle");
+    const textEl = document.getElementById("onboardingText");
+    const prevBtn = document.getElementById("onboardingPrev");
+    const nextBtn = document.getElementById("onboardingNext");
+
+    if (!overlay || !titleEl || !textEl) return;
+
+    // Si nos salimos de rango, terminamos el tour
+    if (index < 0 || index >= onboardingSteps.length) {
+        endOnboarding();
+        return;
+    }
+
+    const step = onboardingSteps[index];
+    const target = document.querySelector(step.selector);
+
+    // Si este paso no encuentra el elemento, saltamos al siguiente
+    if (!target) {
+        const nextIndex = index + 1;
+        if (nextIndex < onboardingSteps.length) {
+            showOnboardingStep(nextIndex);
+        } else {
+            endOnboarding();
+        }
+        return;
+    }
+
+    currentOnboardingStep = index;
+
+    // Calcular a dónde queremos scrollear
+    const rect = target.getBoundingClientRect();
+    const margenSuperior = 120;
+    const destinoY = rect.top + window.scrollY - margenSuperior;
+
+    window.scrollTo({
+        top: destinoY,
+        behavior: "smooth"
+    });
+
+    overlay.classList.remove("hidden");
+    titleEl.textContent = step.title;
+    textEl.textContent = step.text;
+
+    highlightElement(target);
+
+    // Reposicionar la tarjeta después del scroll
+    setTimeout(function () {
+        positionOnboardingCard(step);
+    }, 400);
+
+    prevBtn.disabled = index === 0;
+    nextBtn.textContent = index === onboardingSteps.length - 1 ? "Finalizar" : "Siguiente";
+}
+
+
+
+
+function startOnboarding(forceManual) {
+    const overlay = document.getElementById("onboardingOverlay");
+    if (!overlay) return;
+
+    if (!forceManual) {
+        const alreadyDone = window.localStorage.getItem("tecnoforja_onboarding_done");
+        if (alreadyDone) {
+            return;
+        }
+    }
+
+    showOnboardingStep(0);
+
+    if (!forceManual) {
+        window.localStorage.setItem("tecnoforja_onboarding_done", "1");
+    }
+}
+
+function endOnboarding() {
+    const overlay = document.getElementById("onboardingOverlay");
+    if (overlay) {
+        overlay.classList.add("hidden");
+    }
+    highlightElement(null);
+}
+
 
 document.addEventListener("DOMContentLoaded", function () {
     const addToCartButtons = document.querySelectorAll(".add-to-cart");
@@ -970,6 +1325,82 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // Listeners para filtros del panel admin
+    const adminFilterDate = document.getElementById("adminFilterDate");
+    const adminFilterJobStatus = document.getElementById("adminFilterJobStatus");
+    const adminFilterPaymentStatus = document.getElementById("adminFilterPaymentStatus");
+    const adminFilterClear = document.getElementById("adminFilterClear");
+
+    [adminFilterDate, adminFilterJobStatus, adminFilterPaymentStatus].forEach(ctrl => {
+        if (ctrl) {
+            ctrl.addEventListener("change", function () {
+                renderAppointmentsTable();
+            });
+        }
+    });
+
+    if (adminFilterClear) {
+        adminFilterClear.addEventListener("click", function (e) {
+            e.preventDefault();
+            if (adminFilterDate) adminFilterDate.value = "";
+            if (adminFilterJobStatus) adminFilterJobStatus.value = "todos";
+            if (adminFilterPaymentStatus) adminFilterPaymentStatus.value = "todos";
+            renderAppointmentsTable();
+        });
+    }
+
+
+    // Delegar eventos dentro de la tabla de citas (cambio de estado y notas)
+    const appointmentsTableBody = document.getElementById("appointmentsTableBody");
+    if (appointmentsTableBody) {
+        // Cambio de estado del trabajo
+        appointmentsTableBody.addEventListener("change", function (e) {
+            const target = e.target;
+            if (target.classList.contains("admin-job-status")) {
+                const appId = parseInt(target.dataset.appId, 10);
+                const app = appointments.find(a => a.id === appId);
+                if (app) {
+                    app.jobStatus = target.value;
+                    showNotification("Estado del trabajo actualizado para esta cita (solo en esta sesión).");
+                }
+            }
+        });
+
+        // Abrir modal de notas internas
+        appointmentsTableBody.addEventListener("click", function (e) {
+            const target = e.target;
+            if (target.classList.contains("admin-note-btn")) {
+                const appId = parseInt(target.dataset.appId, 10);
+                const app = appointments.find(a => a.id === appId);
+                if (!app) return;
+
+                const notesInfo = document.getElementById("adminNotesAppointmentInfo");
+                const notesText = document.getElementById("adminNotesText");
+
+                if (notesInfo) {
+                    const formattedDate = formatDateForDisplay(app.date);
+                    notesInfo.textContent =
+                        "Cita: " +
+                        (app.folio || generateAppointmentFolio(app.id, app.date)) +
+                        " · " +
+                        app.clientName +
+                        " · " +
+                        formattedDate +
+                        " · " +
+                        app.time;
+                }
+
+                if (notesText) {
+                    notesText.value = app.internalNote || "";
+                    notesText.dataset.appId = String(app.id);
+                }
+
+                openModal("adminNotesModal");
+            }
+        });
+    }
+
+
     const links = document.querySelectorAll("a[href='#']");
     links.forEach(link => {
         link.addEventListener("click", function (e) {
@@ -1007,6 +1438,100 @@ document.addEventListener("DOMContentLoaded", function () {
             await openPaymentForExistingAppointment();
         });
     }
+
+    // Botones del modal de notas internas
+    const adminNotesClose = document.getElementById("adminNotesClose");
+    const adminNotesCancel = document.getElementById("adminNotesCancel");
+    const adminNotesSave = document.getElementById("adminNotesSave");
+    const adminNotesModal = document.getElementById("adminNotesModal");
+    const adminNotesText = document.getElementById("adminNotesText");
+
+    [adminNotesClose, adminNotesCancel].forEach(btn => {
+        if (btn) {
+            btn.addEventListener("click", function (e) {
+                e.preventDefault();
+                closeModal("adminNotesModal");
+            });
+        }
+    });
+
+    if (adminNotesModal) {
+        adminNotesModal.addEventListener("click", function (e) {
+            if (e.target === adminNotesModal) {
+                closeModal("adminNotesModal");
+            }
+        });
+    }
+
+    if (adminNotesSave && adminNotesText) {
+        adminNotesSave.addEventListener("click", function (e) {
+            e.preventDefault();
+            const appIdStr = adminNotesText.dataset.appId;
+            if (!appIdStr) {
+                closeModal("adminNotesModal");
+                return;
+            }
+            const appId = parseInt(appIdStr, 10);
+            const app = appointments.find(a => a.id === appId);
+            if (app) {
+                app.internalNote = adminNotesText.value || "";
+                showNotification("Notas internas guardadas (solo en esta sesión).");
+                renderAppointmentsTable();
+            }
+            closeModal("adminNotesModal");
+        });
+    }
+
+
+        // Eventos para el tour de ayuda
+    const startOnboardingButton = document.getElementById("startOnboarding");
+    const onboardingNext = document.getElementById("onboardingNext");
+    const onboardingPrev = document.getElementById("onboardingPrev");
+    const onboardingSkip = document.getElementById("onboardingSkip");
+    const onboardingOverlay = document.getElementById("onboardingOverlay");
+
+    if (startOnboardingButton) {
+        startOnboardingButton.addEventListener("click", function () {
+            startOnboarding(true);
+        });
+    }
+
+    if (onboardingNext) {
+        onboardingNext.addEventListener("click", function () {
+            const isLast = currentOnboardingStep === onboardingSteps.length - 1;
+            if (isLast) {
+                endOnboarding();
+            } else {
+                showOnboardingStep(currentOnboardingStep + 1);
+            }
+        });
+    }
+
+    if (onboardingPrev) {
+        onboardingPrev.addEventListener("click", function () {
+            if (currentOnboardingStep > 0) {
+                showOnboardingStep(currentOnboardingStep - 1);
+            }
+        });
+    }
+
+    if (onboardingSkip) {
+        onboardingSkip.addEventListener("click", function () {
+            endOnboarding();
+        });
+    }
+
+    if (onboardingOverlay) {
+        onboardingOverlay.addEventListener("click", function (e) {
+            if (e.target === onboardingOverlay) {
+                endOnboarding();
+            }
+        });
+    }
+
+    // Lanzar el tour automáticamente solo la primera vez
+    startOnboarding(false);
+
 
     // Formato especial para número de tarjeta y vencimiento
     setupCardNumberFormatting();

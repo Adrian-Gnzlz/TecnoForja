@@ -226,7 +226,46 @@ function setupCardExpiryFormatting() {
     });
 }
 
+function setupAdminFilters() {
+    const dateInput = document.getElementById("adminFilterDate");
+    const workSelect = document.getElementById("adminFilterWorkStatus");
+    const paymentSelect = document.getElementById("adminFilterPaymentStatus");
+    const clearButton = document.getElementById("adminFilterClear");
 
+    // Cuando cambie la fecha, se vuelve a dibujar la tabla filtrada
+    if (dateInput) {
+        dateInput.addEventListener("change", () => {
+            renderAppointmentsTable();
+        });
+    }
+
+    // Cuando cambie el estado de trabajo
+    if (workSelect) {
+        workSelect.addEventListener("change", () => {
+            renderAppointmentsTable();
+        });
+    }
+
+    // Cuando cambie el estado de pago
+    if (paymentSelect) {
+        paymentSelect.addEventListener("change", () => {
+            renderAppointmentsTable();
+        });
+    }
+
+    // Botón "Limpiar filtros"
+    if (clearButton) {
+        clearButton.addEventListener("click", (e) => {
+            e.preventDefault();
+
+            if (dateInput) dateInput.value = "";
+            if (workSelect) workSelect.value = "Todos";
+            if (paymentSelect) paymentSelect.value = "Todos";
+
+            renderAppointmentsTable();
+        });
+    }
+}
 
 
 function findProductByName(name) {

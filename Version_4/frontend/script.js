@@ -227,6 +227,8 @@ function setupCardExpiryFormatting() {
 }
 
 
+
+
 function findProductByName(name) {
     return productsLocal.find(p => p.name === name) || null;
 }
@@ -503,6 +505,48 @@ function normalizarFechaYYYYMMDD(valor) {
     return str;
 }
 
+function getAppointmentPaymentStatus(app) {
+    // Normalizar el estado de pago tanto para citas nuevas como cargadas de BD
+    if (app.paymentStatus) {
+        return app.paymentStatus; // valores tipo: 'sin_pago', 'pago_registrado', etc.
+    }
+    // Compatibilidad: si solo tenemos app.status como texto
+    if (app.status === "Con pago registrado") {
+        return "pago_registrado";
+    }
+    return "sin_pago";
+}
+
+function getFilteredAppointments() {
+    const dateInput = document.getElementById("adminFilterDate");
+    const workSelect = document.getElementById("adminFilterWorkStatus");
+    const paymentSelect = document.getElementById("adminFilterPaymentStatus");
+
+    const dateValue = dateInput ? dateInput.value : "";
+    const workValue = workSelect ? workSelect.value : "Todos";
+    const paymentValue = paymentSelect ? paymentSelect.value : "Todos";
+
+    return appointments.filter(app => {
+        // Filtro por fecha (input type="date", formato YYYY-MM-DD)
+        if (dateValue && app.date !== dateValue) {
+            return false;
+        }
+
+        // Filtro por estado de trabajo (ENUM de la BD)
+        const workStatus = app.workStatus || "pendiente_visita";
+        if (workValue && workValue !== "Todos" && workStatus !== workValue) {
+            return false;
+        }
+
+        // Filtro por estado de pago
+        const appPaymentStatus = getAppointmentPaymentStatus(app);
+        if (paymentValue && paymentValue !== "Todos" && appPaymentStatus !== paymentValue) {
+            return false;
+        }
+
+        return true;
+    });
+}
 
 
 function renderAppointmentsTable() {
@@ -512,14 +556,25 @@ function renderAppointmentsTable() {
 
     tbody.innerHTML = "";
 
+    // Si de verdad no hay citas en memoria, mensaje genérico
     if (appointments.length === 0) {
+        emptyLabel.textContent = "Aún no se han registrado citas en la base de datos.";
+        emptyLabel.classList.remove("hidden");
+        return;
+    }
+
+    // Aplicar filtros
+    const filtered = getFilteredAppointments();
+
+    if (filtered.length === 0) {
+        emptyLabel.textContent = "No hay citas que coincidan con los filtros seleccionados.";
         emptyLabel.classList.remove("hidden");
         return;
     }
 
     emptyLabel.classList.add("hidden");
 
-    appointments.forEach(app => {
+    filtered.forEach(app => {
         const tr = document.createElement("tr");
 
         // Fecha
@@ -583,9 +638,9 @@ function renderAppointmentsTable() {
         // Estado de pago (solo texto)
         const tdPaymentStatus = document.createElement("td");
         tdPaymentStatus.className = "px-3 py-2";
+        const paymentStatusValue = getAppointmentPaymentStatus(app);
         const paymentLabel =
-            PAYMENT_STATUS_LABELS[app.paymentStatus] ||
-            PAYMENT_STATUS_LABELS[app.status] ||
+            PAYMENT_STATUS_LABELS[paymentStatusValue] ||
             "Sin pago";
         tdPaymentStatus.textContent = paymentLabel;
 
@@ -691,6 +746,7 @@ function renderAppointmentsTable() {
         tbody.appendChild(tr);
     });
 }
+
 
 
 
@@ -1419,7 +1475,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     // Listeners para filtros del panel admin
     const adminFilterDate = document.getElementById("adminFilterDate");
-    const adminFilterJobStatus = document.getElementById("adminFilterJobStatus");
+    const adminFilterJobStatus = document.getElementById("adminFilterWorkStatus");
     const adminFilterPaymentStatus = document.getElementById("adminFilterPaymentStatus");
     const adminFilterClear = document.getElementById("adminFilterClear");
 
@@ -1435,8 +1491,8 @@ document.addEventListener("DOMContentLoaded", function () {
         adminFilterClear.addEventListener("click", function (e) {
             e.preventDefault();
             if (adminFilterDate) adminFilterDate.value = "";
-            if (adminFilterJobStatus) adminFilterJobStatus.value = "todos";
-            if (adminFilterPaymentStatus) adminFilterPaymentStatus.value = "todos";
+            if (adminFilterJobStatus) adminFilterJobStatus.value = "Todos";
+            if (adminFilterPaymentStatus) adminFilterPaymentStatus.value = "Todos";
             renderAppointmentsTable();
         });
     }

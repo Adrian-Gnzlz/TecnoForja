@@ -32,10 +32,10 @@ router.get("/", async (req, res) => {
                 comentarios AS comments,
                 monto_estimado AS estimatedAmount,
                 estado AS status,
-                estado_trabajo AS workStatus,
-                estado_pago AS paymentStatus,
+                work_status AS workStatus,
+                payment_status AS paymentStatus,
                 prioridad,
-                notas_admin AS adminNotes
+                admin_notes AS adminNotes
             FROM citas
             ORDER BY fecha DESC, hora DESC`
         );
@@ -84,10 +84,11 @@ router.post("/", async (req, res) => {
                 comentarios,
                 monto_estimado,
                 estado,
-                estado_trabajo,
-                estado_pago,
-                prioridad
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pendiente', 'pendiente_visita', 'sin_pago', 'media')`,
+                work_status,
+                payment_status,
+                prioridad,
+                admin_notes
+            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, 'Pendiente', 'pendiente_visita', 'sin_pago', 'media', NULL)`,            
             [
                 date,
                 time,
@@ -178,10 +179,10 @@ router.put("/:id", async (req, res) => {
         await pool.query(
             `UPDATE citas
              SET
-                estado_trabajo = COALESCE(?, estado_trabajo),
-                estado_pago    = COALESCE(?, estado_pago),
+                work_status    = COALESCE(?, work_status),
+                payment_status = COALESCE(?, payment_status),
                 prioridad      = COALESCE(?, prioridad),
-                notas_admin    = COALESCE(?, notas_admin)
+                admin_notes    = COALESCE(?, admin_notes)
              WHERE id = ?`,
             [
                 workStatus || null,
@@ -206,10 +207,10 @@ router.put("/:id", async (req, res) => {
                 comentarios AS comments,
                 monto_estimado AS estimatedAmount,
                 estado AS status,
-                estado_trabajo AS workStatus,
-                estado_pago AS paymentStatus,
+                work_status AS workStatus,
+                payment_status AS PaymentStatus,
                 prioridad,
-                notas_admin AS adminNotes
+                admin_notes AS adminNotes
             FROM citas
             WHERE id = ?`,
             [id]

@@ -1,6 +1,15 @@
 // frontend/script.js
 
-const API_BASE_URL = "https://tecnoforja-production.up.railway.app/api";
+const API_BASE_URL = "http://localhost:4000/api";
+
+
+// Clave pública de Stripe (reemplaza por la tuya de modo prueba)
+const STRIPE_PUBLIC_KEY = "pk_test_51SbqgB1cYnCkYkReNgJfheAzSGzrxaEhP9O5zBKrC3aDi74h4bcONe1mlHzuX9BBBLFfKBUoWmII3zK16yTCu0tK00MTp0ENgA";
+
+let stripe = null;
+let stripeElements = null;
+let stripeCardElement = null;
+
 
 const cart = [];
 const productsLocal = [
@@ -15,25 +24,39 @@ const productsLocal = [
 const appointments = [];
 const payments = [];
 
+// frontend/script.js
 function mapServerAppointment(a) {
     return {
         id: a.id,
-        folio: a.folio || generateAppointmentFolio(a.id, a.date),
-        date: a.date,
-        time: a.time,
-        clientName: a.clientName,
-        phone: a.phone,
-        email: a.email,
-        address: a.address,
-        comments: a.comments,
-        estimatedAmount: a.estimatedAmount,
-        status: a.status,
-        workStatus: a.workStatus || "pendiente_visita",
-        paymentStatus: a.paymentStatus || "sin_pago",
-        priority: a.prioridad || a.priority || "media",
-        adminNotes: a.adminNotes || ""
+        folio: a.folio || generateAppointmentFolio(a.id, a.date || a.fecha),
+
+        // Campos base de la cita
+        date: a.date || a.fecha,
+        time: a.time || a.hora,
+        clientName: a.clientName || a.nombre_cliente,
+        phone: a.phone || a.telefono,
+        email: a.email || a.correo,
+        address: a.address || a.direccion,
+        comments: a.comments || a.comentarios,
+
+        // Monto estimado
+        estimatedAmount:
+            a.estimatedAmount ??
+            a.monto_estimado ??
+            0,
+
+        status: a.status || a.estado,
+
+        // Nuevos campos del panel admin (acepta nombres camelCase o snake_case)
+        workStatus: a.workStatus || a.work_status || "pendiente_visita",
+        paymentStatus: a.paymentStatus || a.payment_status || "sin_pago",
+        priority: a.priority || a.prioridad || "media",
+        adminNotes: a.adminNotes || a.admin_notes || ""
     };
 }
+
+
+
 
 const WORK_STATUS_LABELS = {
     pendiente_visita: "Pendiente de visita",
@@ -228,44 +251,41 @@ function setupCardExpiryFormatting() {
 
 function setupAdminFilters() {
     const dateInput = document.getElementById("adminFilterDate");
-    const workSelect = document.getElementById("adminFilterWorkStatus");
+    const workSelect = document.getElementById("adminFilterJobStatus");
     const paymentSelect = document.getElementById("adminFilterPaymentStatus");
     const clearButton = document.getElementById("adminFilterClear");
 
-    // Cuando cambie la fecha, se vuelve a dibujar la tabla filtrada
     if (dateInput) {
         dateInput.addEventListener("change", () => {
             renderAppointmentsTable();
         });
     }
 
-    // Cuando cambie el estado de trabajo
     if (workSelect) {
         workSelect.addEventListener("change", () => {
             renderAppointmentsTable();
         });
     }
 
-    // Cuando cambie el estado de pago
     if (paymentSelect) {
         paymentSelect.addEventListener("change", () => {
             renderAppointmentsTable();
         });
     }
 
-    // Botón "Limpiar filtros"
     if (clearButton) {
         clearButton.addEventListener("click", (e) => {
             e.preventDefault();
 
             if (dateInput) dateInput.value = "";
-            if (workSelect) workSelect.value = "Todos";
-            if (paymentSelect) paymentSelect.value = "Todos";
+            if (workSelect) workSelect.value = "todos";
+            if (paymentSelect) paymentSelect.value = "todos";
 
             renderAppointmentsTable();
         });
     }
 }
+
 
 
 function findProductByName(name) {
@@ -558,34 +578,38 @@ function getAppointmentPaymentStatus(app) {
 
 function getFilteredAppointments() {
     const dateInput = document.getElementById("adminFilterDate");
-    const workSelect = document.getElementById("adminFilterWorkStatus");
+    const workSelect = document.getElementById("adminFilterJobStatus");
     const paymentSelect = document.getElementById("adminFilterPaymentStatus");
 
     const dateValue = dateInput ? dateInput.value : "";
-    const workValue = workSelect ? workSelect.value : "Todos";
-    const paymentValue = paymentSelect ? paymentSelect.value : "Todos";
+    const workValue = workSelect ? workSelect.value : "todos";
+    const paymentValue = paymentSelect ? paymentSelect.value : "todos";
 
     return appointments.filter(app => {
-        // Filtro por fecha (input type="date", formato YYYY-MM-DD)
-        if (dateValue && app.date !== dateValue) {
-            return false;
+        // Filtro por fecha: normalizamos lo que viene de la BD
+        if (dateValue) {
+            const fechaApp = normalizarFechaYYYYMMDD(app.date);
+            if (fechaApp !== dateValue) {
+                return false;
+            }
         }
 
-        // Filtro por estado de trabajo (ENUM de la BD)
+        // Filtro por estado de trabajo (códigos como 'pendiente_visita', 'en_proceso', etc.)
         const workStatus = app.workStatus || "pendiente_visita";
-        if (workValue && workValue !== "Todos" && workStatus !== workValue) {
+        if (workValue !== "todos" && workStatus !== workValue) {
             return false;
         }
 
-        // Filtro por estado de pago
+        // Filtro por estado de pago ('sin_pago', 'pago_registrado', etc.)
         const appPaymentStatus = getAppointmentPaymentStatus(app);
-        if (paymentValue && paymentValue !== "Todos" && appPaymentStatus !== paymentValue) {
+        if (paymentValue !== "todos" && appPaymentStatus !== paymentValue) {
             return false;
         }
 
         return true;
     });
 }
+
 
 
 function renderAppointmentsTable() {
@@ -972,18 +996,75 @@ async function registerPayment() {
     const method = methodRadio.value;
     const amount = currentAppointment.estimatedAmount || 0;
 
-    if (method === "tarjeta") {
-        const cardHolder = document.getElementById("cardHolder");
-        const cardNumber = document.getElementById("cardNumber");
-        const cardExpiry = document.getElementById("cardExpiry");
-        const cardCvv = document.getElementById("cardCvv");
+    if (amount <= 0) {
+        showNotification("El monto a pagar debe ser mayor a 0.");
+        return;
+    }
 
-        if (!cardHolder.value || !cardNumber.value || !cardExpiry.value || !cardCvv.value) {
-            showNotification("Completa todos los datos de la tarjeta para registrar el pago.");
+    // Si el método es tarjeta, primero procesamos con Stripe
+    if (method === "tarjeta") {
+        if (!stripe || !stripeCardElement) {
+            showNotification("El pago con tarjeta no está disponible en este momento.");
+            return;
+        }
+
+        try {
+            // 1) Pedir al backend un PaymentIntent
+            const intentResponse = await fetch(`${API_BASE_URL}/pagos/crear-intento`, {
+                method: "POST",
+                headers: {
+                    "Content-Type": "application/json"
+                },
+                body: JSON.stringify({
+                    appointmentId: currentAppointment.id,
+                    clientName: currentAppointment.clientName,
+                    amount: amount
+                })
+            });
+
+            if (!intentResponse.ok) {
+                showNotification("No se pudo iniciar el pago con tarjeta.");
+                return;
+            }
+
+            const intentData = await intentResponse.json();
+            const clientSecret = intentData.clientSecret;
+
+            if (!clientSecret) {
+                showNotification("Respuesta inválida del servidor de pagos.");
+                return;
+            }
+
+            // 2) Confirmar el pago con Stripe en el navegador
+            const { error, paymentIntent } = await stripe.confirmCardPayment(clientSecret, {
+                payment_method: {
+                    card: stripeCardElement,
+                    billing_details: {
+                        name: currentAppointment.clientName || "Cliente TecnoForja"
+                    }
+                }
+            });
+
+            if (error) {
+                console.error("Error Stripe confirmCardPayment:", error);
+                showNotification("Error al procesar el pago con tarjeta: " + (error.message || ""));
+                return;
+            }
+
+            if (!paymentIntent || paymentIntent.status !== "succeeded") {
+                showNotification("El pago con tarjeta no se completó correctamente.");
+                return;
+            }
+
+            // Si llegamos aquí, Stripe ya cobró exitosamente
+        } catch (err) {
+            console.error("Error al procesar pago con tarjeta:", err);
+            showNotification("Ocurrió un problema al procesar el pago con tarjeta.");
             return;
         }
     }
 
+    // 3) Registrar el pago en nuestra base de datos (tarjeta ya cobrada o efectivo)
     const payload = {
         appointmentId: currentAppointment.id,
         clientName: currentAppointment.clientName,
@@ -1019,16 +1100,18 @@ async function registerPayment() {
 
         payments.push(payment);
 
-        // Recargar citas desde el servidor para reflejar estado_pago y montos
+        // Recargar citas desde el servidor para reflejar payment_status
         await loadAppointmentsFromServer();
 
         renderPaymentsTable();
         showNotification("Pago registrado y guardado en la base de datos.");
+        closeModal("paymentModal");
     } catch (error) {
         console.error("Error registerPayment:", error);
         showNotification("Error de comunicación con el servidor al registrar el pago.");
     }
 }
+
 
 
 async function loadAppointmentsFromServer() {
@@ -1313,6 +1396,19 @@ function endOnboarding() {
 
 
 document.addEventListener("DOMContentLoaded", function () {
+        // Inicializar Stripe si está disponible y existe el contenedor
+    const cardElementContainer = document.getElementById("cardElement");
+    if (window.Stripe && STRIPE_PUBLIC_KEY && cardElementContainer) {
+        try {
+            stripe = Stripe(STRIPE_PUBLIC_KEY);
+            stripeElements = stripe.elements();
+            stripeCardElement = stripeElements.create("card");
+            stripeCardElement.mount("#cardElement");
+        } catch (error) {
+            console.error("Error inicializando Stripe:", error);
+        }
+    }
+
     const addToCartButtons = document.querySelectorAll(".add-to-cart");
 
     addToCartButtons.forEach(button => {
@@ -1512,9 +1608,9 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Listeners para filtros del panel admin
+    // Listeners para filtros del panel admin (usamos los ids correctos)
     const adminFilterDate = document.getElementById("adminFilterDate");
-    const adminFilterJobStatus = document.getElementById("adminFilterWorkStatus");
+    const adminFilterJobStatus = document.getElementById("adminFilterJobStatus");
     const adminFilterPaymentStatus = document.getElementById("adminFilterPaymentStatus");
     const adminFilterClear = document.getElementById("adminFilterClear");
 
@@ -1530,11 +1626,15 @@ document.addEventListener("DOMContentLoaded", function () {
         adminFilterClear.addEventListener("click", function (e) {
             e.preventDefault();
             if (adminFilterDate) adminFilterDate.value = "";
-            if (adminFilterJobStatus) adminFilterJobStatus.value = "Todos";
-            if (adminFilterPaymentStatus) adminFilterPaymentStatus.value = "Todos";
+            if (adminFilterJobStatus) adminFilterJobStatus.value = "todos";
+            if (adminFilterPaymentStatus) adminFilterPaymentStatus.value = "todos";
             renderAppointmentsTable();
         });
     }
+
+    // Opcional, para centralizar la lógica de filtros
+    setupAdminFilters();
+
 
 
     // Delegar eventos dentro de la tabla de citas (cambio de estado y notas)

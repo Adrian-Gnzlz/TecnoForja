@@ -26,8 +26,25 @@ CREATE TABLE IF NOT EXISTS citas (
   comentarios TEXT,
   monto_estimado DECIMAL(10,2) DEFAULT 0,
   estado VARCHAR(50) DEFAULT 'Pendiente',
+  work_status ENUM(
+    'pendiente_visita',
+    'visita_realizada',
+    'en_proceso',
+    'terminado',
+    'entregado',
+    'cancelado'
+  ) DEFAULT 'pendiente_visita',
+  payment_status ENUM(
+    'sin_pago',
+    'pago_registrado',
+    'pago_parcial',
+    'cancelado'
+  ) DEFAULT 'sin_pago',
+  prioridad ENUM('alta','media','baja') DEFAULT 'media',
+  admin_notes TEXT NULL,
   created_at DATETIME DEFAULT CURRENT_TIMESTAMP
 );
+
 
 CREATE TABLE IF NOT EXISTS cita_items (
   id INT AUTO_INCREMENT PRIMARY KEY,

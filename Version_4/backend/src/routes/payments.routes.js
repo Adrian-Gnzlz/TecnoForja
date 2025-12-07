@@ -2,6 +2,11 @@
 const express = require("express");
 const { pool } = require("../db");
 
+const Stripe = require("stripe");
+const stripeSecretKey = process.env.STRIPE_SECRET_KEY || "";
+const stripe = stripeSecretKey ? Stripe(stripeSecretKey) : null;
+
+
 const router = express.Router();
 
 // GET /api/pagos
@@ -27,8 +32,52 @@ router.get("/", async (req, res) => {
     }
 });
 
+// POST /api/pagos/crear-intento
+// Crea un PaymentIntent en Stripe y devuelve el clientSecret
+router.post("/crear-intento", async (req, res) => {
+    if (!stripe) {
+        return res.status(500).json({
+            message: "Stripe no está configurado en el servidor."
+        });
+    }
+
+    const { amount, appointmentId, clientName } = req.body;
+
+    if (!amount || amount <= 0) {
+        return res.status(400).json({
+            message: "Monto inválido para el pago."
+        });
+    }
+
+    try {
+        const paymentIntent = await stripe.paymentIntents.create({
+            amount: Math.round(Number(amount) * 100), // Stripe trabaja en centavos
+            currency: "mxn",
+            automatic_payment_methods: {
+                enabled: true
+            },
+            metadata: {
+                appointmentId: appointmentId ? String(appointmentId) : "",
+                clientName: clientName || ""
+            }
+        });
+
+        res.json({
+            clientSecret: paymentIntent.client_secret
+        });
+    } catch (error) {
+        console.error("Error al crear PaymentIntent:", error);
+        res.status(500).json({
+            message: "No se pudo crear el intento de pago."
+        });
+    }
+});
+
+
 // POST /api/pagos
 // Registra un pago y actualiza la cita correspondiente
+// POST /api/pagos
+// Registra un pago (tarjeta ya procesada en Stripe o efectivo) y actualiza la cita
 router.post("/", async (req, res) => {
     const { appointmentId, clientName, method, amount } = req.body;
 
@@ -43,6 +92,7 @@ router.post("/", async (req, res) => {
         await connection.beginTransaction();
 
         const now = new Date();
+        const nowStr = now.toISOString().slice(0, 19).replace("T", " ");
 
         // 1) Insertar registro en pagos
         const [result] = await connection.query(
@@ -59,26 +109,22 @@ router.post("/", async (req, res) => {
                 clientName,
                 method,
                 amount,
-                now.toISOString().slice(0, 19).replace("T", " ")
+                nowStr
             ]
         );
 
         const paymentId = result.insertId;
 
         // 2) Actualizar estado de la cita:
-        //    - estado (texto antiguo) lo dejamos como "Con pago registrado" por compatibilidad
-        //    - estado_pago pasa a "pago_registrado"
-        //    - monto_pagado se incrementa con el nuevo pago
-        //    - monto_presupuestado se actualiza con el monto total del pago actual (si quieres otra lógica, se ajusta)
+        //    - estado: texto amigable
+        //    - payment_status: campo nuevo en la tabla citas
         await connection.query(
             `UPDATE citas
              SET 
                 estado = 'Con pago registrado',
-                estado_pago = 'pago_registrado',
-                monto_pagado = monto_pagado + ?,
-                monto_presupuestado = ?
+                payment_status = 'pago_registrado'
              WHERE id = ?`,
-            [amount, amount, appointmentId]
+            [appointmentId]
         );
 
         await connection.commit();
@@ -90,7 +136,7 @@ router.post("/", async (req, res) => {
             method,
             amount,
             status: "Registrado",
-            date: now.toISOString().slice(0, 19).replace("T", " ")
+            date: nowStr
         };
 
         res.status(201).json(paymentResponse);
@@ -102,5 +148,6 @@ router.post("/", async (req, res) => {
         connection.release();
     }
 });
+
 
 module.exports = router;

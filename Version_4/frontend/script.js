@@ -15,6 +15,49 @@ const productsLocal = [
 const appointments = [];
 const payments = [];
 
+function mapServerAppointment(a) {
+    return {
+        id: a.id,
+        folio: a.folio || generateAppointmentFolio(a.id, a.date),
+        date: a.date,
+        time: a.time,
+        clientName: a.clientName,
+        phone: a.phone,
+        email: a.email,
+        address: a.address,
+        comments: a.comments,
+        estimatedAmount: a.estimatedAmount,
+        status: a.status,
+        workStatus: a.workStatus || "pendiente_visita",
+        paymentStatus: a.paymentStatus || "sin_pago",
+        priority: a.prioridad || a.priority || "media",
+        adminNotes: a.adminNotes || ""
+    };
+}
+
+const WORK_STATUS_LABELS = {
+    pendiente_visita: "Pendiente de visita",
+    visita_realizada: "Visitado",
+    en_proceso: "En proceso",
+    terminado: "Terminado",
+    entregado: "Entregado",
+    cancelado: "Cancelado"
+};
+
+const PAYMENT_STATUS_LABELS = {
+    sin_pago: "Sin pago",
+    pago_registrado: "Con pago registrado",
+    pago_parcial: "Pago parcial",
+    cancelado: "Cancelado"
+};
+
+const PRIORITY_CONFIG = {
+    alta: { label: "Prioritario", colorClass: "bg-red-500" },
+    media: { label: "Importante", colorClass: "bg-yellow-400" },
+    baja: { label: "No prioritario", colorClass: "bg-green-500" }
+};
+
+
 // Estados internos del flujo de trabajo del taller (solo frontend)
 const JOB_STATUS_OPTIONS = [
     "Pendiente de visita",
@@ -409,22 +452,7 @@ async function createAppointmentFromForm() {
 
         const saved = await response.json();
 
-        const appointment = {
-            id: saved.id,
-            folio: generateAppointmentFolio(saved.id, saved.date),
-            date: saved.date,
-            time: saved.time,
-            clientName: saved.clientName,
-            phone: saved.phone,
-            email: saved.email,
-            address: saved.address,
-            comments: saved.comments,
-            estimatedAmount: saved.estimatedAmount,
-            status: saved.status,          // estado general (registrada / con pago)
-            jobStatus: "Pendiente de visita", // flujo interno del taller
-            internalNote: ""                  // notas solo para admin
-        };
-
+        const appointment = mapServerAppointment(saved);
 
 
         appointments.push(appointment);
@@ -484,136 +512,186 @@ function renderAppointmentsTable() {
 
     tbody.innerHTML = "";
 
-    // Leer filtros
-    const dateFilterInput = document.getElementById("adminFilterDate");
-    const jobStatusFilterSelect = document.getElementById("adminFilterJobStatus");
-    const paymentStatusFilterSelect = document.getElementById("adminFilterPaymentStatus");
-
-    const dateFilter = dateFilterInput && dateFilterInput.value ? dateFilterInput.value : "";
-    const jobStatusFilter = jobStatusFilterSelect ? jobStatusFilterSelect.value : "todos";
-    const paymentStatusFilter = paymentStatusFilterSelect ? paymentStatusFilterSelect.value : "todos";
-
-    // Aplicar filtros
-    const filtered = appointments.filter(app => {
-        // Filtrar por fecha exacta usando formato normalizado YYYY-MM-DD
-        if (dateFilter) {
-            const fechaFiltro = dateFilter;           // valor del input date (YYYY-MM-DD)
-            const fechaCita = normalizarFechaYYYYMMDD(app.date);
-
-            if (fechaCita !== fechaFiltro) {
-                return false;
-            }
-        }
-
-
-        // Filtrar por estado del trabajo
-        if (jobStatusFilter !== "todos") {
-            const js = app.jobStatus || "Pendiente de visita";
-            if (js !== jobStatusFilter) return false;
-        }
-
-        // Filtrar por estado de pago
-        const paymentStatus = getPaymentStatusForAppointment(app.id);
-        if (paymentStatusFilter === "sinPago" && paymentStatus !== "Sin pago registrado") {
-            return false;
-        }
-        if (paymentStatusFilter === "conPago" && paymentStatus !== "Con pago registrado") {
-            return false;
-        }
-
-        return true;
-    });
-
-    if (filtered.length === 0) {
+    if (appointments.length === 0) {
         emptyLabel.classList.remove("hidden");
         return;
     }
 
     emptyLabel.classList.add("hidden");
 
-    filtered.forEach(app => {
+    appointments.forEach(app => {
         const tr = document.createElement("tr");
 
+        // Fecha
         const tdDate = document.createElement("td");
-        tdDate.className = "px-3 py-2 whitespace-nowrap";
+        tdDate.className = "px-3 py-2";
         tdDate.textContent = formatDateForDisplay(app.date);
 
+        // Hora
         const tdTime = document.createElement("td");
-        tdTime.className = "px-3 py-2 whitespace-nowrap";
+        tdTime.className = "px-3 py-2";
         tdTime.textContent = app.time;
 
+        // Folio
         const tdFolio = document.createElement("td");
-        tdFolio.className = "px-3 py-2 whitespace-nowrap";
+        tdFolio.className = "px-3 py-2";
         tdFolio.textContent = app.folio || generateAppointmentFolio(app.id, app.date);
 
+        // Cliente
         const tdClient = document.createElement("td");
-        tdClient.className = "px-3 py-2 whitespace-nowrap";
+        tdClient.className = "px-3 py-2";
         tdClient.textContent = app.clientName;
 
+        // Teléfono
         const tdPhone = document.createElement("td");
-        tdPhone.className = "px-3 py-2 whitespace-nowrap";
+        tdPhone.className = "px-3 py-2";
         tdPhone.textContent = app.phone;
 
-        const tdAddress = document.createElement("td");
-        tdAddress.className = "px-3 py-2 hidden lg:table-cell";
-        tdAddress.textContent = app.address || "";
-
+        // Monto estimado
         const tdAmount = document.createElement("td");
-        tdAmount.className = "px-3 py-2 whitespace-nowrap";
+        tdAmount.className = "px-3 py-2";
         tdAmount.textContent =
             "$" + (app.estimatedAmount || 0).toLocaleString("es-MX") + " MXN";
 
         // Estado del trabajo (select)
-        const tdJobStatus = document.createElement("td");
-        tdJobStatus.className = "px-3 py-2 whitespace-nowrap";
-        const select = document.createElement("select");
-        select.className =
-            "admin-job-status border border-gray-300 rounded-sm px-2 py-1 text-xs focus:outline-none focus:ring-1 focus:ring-gray-700";
-        select.dataset.appId = app.id;
+        const tdWorkStatus = document.createElement("td");
+        tdWorkStatus.className = "px-3 py-2";
+        const selectWork = document.createElement("select");
+        selectWork.className = "border border-gray-300 rounded px-1 py-0.5 text-xs md:text-sm";
 
-        JOB_STATUS_OPTIONS.forEach(opt => {
-            const optionEl = document.createElement("option");
-            optionEl.value = opt;
-            optionEl.textContent = opt;
-            select.appendChild(optionEl);
+        Object.keys(WORK_STATUS_LABELS).forEach(value => {
+            const opt = document.createElement("option");
+            opt.value = value;
+            opt.textContent = WORK_STATUS_LABELS[value];
+            if (value === (app.workStatus || "pendiente_visita")) {
+                opt.selected = true;
+            }
+            selectWork.appendChild(opt);
         });
 
-        select.value = app.jobStatus || "Pendiente de visita";
-        tdJobStatus.appendChild(select);
+        selectWork.addEventListener("change", () => {
+            const newStatus = selectWork.value;
+            updateAppointmentFields(
+                app.id,
+                { workStatus: newStatus },
+                "Estado del trabajo actualizado y guardado en la base de datos."
+            );
+        });
 
-        // Estado de pago
+        tdWorkStatus.appendChild(selectWork);
+
+        // Estado de pago (solo texto)
         const tdPaymentStatus = document.createElement("td");
-        tdPaymentStatus.className = "px-3 py-2 whitespace-nowrap";
-        const paymentStatus = getPaymentStatusForAppointment(app.id);
-        tdPaymentStatus.textContent = paymentStatus;
+        tdPaymentStatus.className = "px-3 py-2";
+        const paymentLabel =
+            PAYMENT_STATUS_LABELS[app.paymentStatus] ||
+            PAYMENT_STATUS_LABELS[app.status] ||
+            "Sin pago";
+        tdPaymentStatus.textContent = paymentLabel;
 
-        // Notas internas
+        // Prioridad (círculo de color + select)
+        const tdPriority = document.createElement("td");
+        tdPriority.className = "px-3 py-2";
+
+        const priorityContainer = document.createElement("div");
+        priorityContainer.className = "flex flex-col";
+
+        const priorityVisual = document.createElement("div");
+        priorityVisual.className = "flex items-center space-x-1 mb-1";
+
+        const priorityDot = document.createElement("span");
+        priorityDot.className = "inline-block w-3 h-3 rounded-full";
+
+        const priorityText = document.createElement("span");
+        priorityText.className = "text-xs md:text-sm";
+
+        function applyPriorityVisual(value) {
+            const cfg = PRIORITY_CONFIG[value] || PRIORITY_CONFIG.media;
+            priorityDot.className =
+                "inline-block w-3 h-3 rounded-full " + cfg.colorClass;
+            priorityText.textContent = cfg.label;
+        }
+
+        applyPriorityVisual(app.priority || "media");
+
+        priorityVisual.appendChild(priorityDot);
+        priorityVisual.appendChild(priorityText);
+
+        const selectPriority = document.createElement("select");
+        selectPriority.className =
+            "border border-gray-300 rounded px-1 py-0.5 text-[11px] md:text-xs";
+
+        Object.keys(PRIORITY_CONFIG).forEach(value => {
+            const opt = document.createElement("option");
+            opt.value = value;
+            opt.textContent = PRIORITY_CONFIG[value].label;
+            if (value === (app.priority || "media")) {
+                opt.selected = true;
+            }
+            selectPriority.appendChild(opt);
+        });
+
+        selectPriority.addEventListener("change", () => {
+            const newPriority = selectPriority.value;
+            applyPriorityVisual(newPriority);
+            updateAppointmentFields(
+                app.id,
+                { priority: newPriority },
+                "Prioridad de la cita actualizada y guardada en la base de datos."
+            );
+        });
+
+        priorityContainer.appendChild(priorityVisual);
+        priorityContainer.appendChild(selectPriority);
+        tdPriority.appendChild(priorityContainer);
+
+        // Notas del administrador
         const tdNotes = document.createElement("td");
-        tdNotes.className = "px-3 py-2 whitespace-nowrap";
-        const notesBtn = document.createElement("button");
-        notesBtn.type = "button";
-        notesBtn.className =
-            "admin-note-btn text-xs text-gray-700 border border-gray-300 rounded-sm px-2 py-1 hover:bg-gray-100 transition-colors duration-300";
-        notesBtn.dataset.appId = app.id;
-        notesBtn.textContent = app.internalNote && app.internalNote.trim() !== ""
-            ? "Ver / editar"
-            : "Agregar nota";
-        tdNotes.appendChild(notesBtn);
+        tdNotes.className = "px-3 py-2";
 
+        const notesButton = document.createElement("button");
+        notesButton.className = "text-xs text-blue-600 hover:underline";
+        notesButton.textContent = app.adminNotes ? "Editar nota" : "Agregar nota";
+
+        const notesPreview = document.createElement("p");
+        notesPreview.className =
+            "text-[11px] text-gray-500 mt-1 max-w-xs truncate";
+        notesPreview.textContent = app.adminNotes || "Sin notas.";
+
+        notesButton.addEventListener("click", async () => {
+            const currentText = app.adminNotes || "";
+            const newText = window.prompt(
+                "Escribe la nota interna para esta cita:",
+                currentText
+            );
+            if (newText === null) return;
+
+            await updateAppointmentFields(
+                app.id,
+                { adminNotes: newText },
+                "Nota del administrador guardada en la base de datos."
+            );
+        });
+
+        tdNotes.appendChild(notesButton);
+        tdNotes.appendChild(notesPreview);
+
+        // Agregar celdas a la fila
         tr.appendChild(tdDate);
         tr.appendChild(tdTime);
         tr.appendChild(tdFolio);
         tr.appendChild(tdClient);
         tr.appendChild(tdPhone);
-        tr.appendChild(tdAddress);
         tr.appendChild(tdAmount);
-        tr.appendChild(tdJobStatus);
+        tr.appendChild(tdWorkStatus);
         tr.appendChild(tdPaymentStatus);
+        tr.appendChild(tdPriority);
         tr.appendChild(tdNotes);
 
         tbody.appendChild(tr);
     });
 }
+
 
 
 function renderPaymentsTable() {
@@ -846,25 +924,17 @@ async function registerPayment() {
 
         payments.push(payment);
 
-        if (currentAppointment) {
-            currentAppointment.status = "Con pago registrado";
-        }
-
-        const appIndex = appointments.findIndex(a => a.id === payment.appointmentId);
-        if (appIndex !== -1) {
-            appointments[appIndex].status = "Con pago registrado";
-            appointments[appIndex].estimatedAmount = payment.amount;
-        }
+        // Recargar citas desde el servidor para reflejar estado_pago y montos
+        await loadAppointmentsFromServer();
 
         renderPaymentsTable();
-        renderAppointmentsTable();
-
-        showNotification("Pago registrado de manera simulada en la base de datos.");
+        showNotification("Pago registrado y guardado en la base de datos.");
     } catch (error) {
         console.error("Error registerPayment:", error);
         showNotification("Error de comunicación con el servidor al registrar el pago.");
     }
 }
+
 
 async function loadAppointmentsFromServer() {
     try {
@@ -877,30 +947,52 @@ async function loadAppointmentsFromServer() {
 
         appointments.length = 0;
         data.forEach(a => {
-            appointments.push({
-                id: a.id,
-                folio: generateAppointmentFolio(a.id, a.date),
-                date: a.date,
-                time: a.time,
-                clientName: a.clientName,
-                phone: a.phone,
-                email: a.email,
-                address: a.address,
-                comments: a.comments,
-                estimatedAmount: a.estimatedAmount,
-                status: a.status,
-                jobStatus: "Pendiente de visita",
-                internalNote: ""
-            });
+            appointments.push(mapServerAppointment(a));
         });
 
         renderAppointmentsTable();
-
     } catch (error) {
         console.error("Error loadAppointmentsFromServer:", error);
         showNotification("Error al comunicar con el servidor para cargar citas.");
     }
 }
+
+async function updateAppointmentFields(appointmentId, fields, successMessage) {
+    try {
+        const response = await fetch(`${API_BASE_URL}/citas/${appointmentId}`, {
+            method: "PUT",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify(fields)
+        });
+
+        if (!response.ok) {
+            showNotification("No se pudo guardar la actualización de la cita en la base de datos.");
+            return;
+        }
+
+        const updated = await response.json();
+        const mapped = mapServerAppointment(updated);
+
+        const index = appointments.findIndex(a => a.id === mapped.id);
+        if (index !== -1) {
+            appointments[index] = mapped;
+        }
+
+        renderAppointmentsTable();
+
+        if (successMessage) {
+            showNotification(successMessage);
+        } else {
+            showNotification("Cita actualizada y guardada en la base de datos.");
+        }
+    } catch (error) {
+        console.error("Error updateAppointmentFields:", error);
+        showNotification("Error de comunicación con el servidor al actualizar la cita.");
+    }
+}
+
 
 async function loadPaymentsFromServer() {
     try {

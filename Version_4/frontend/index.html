@@ -677,9 +677,11 @@
             <div class="bg-white rounded-sm shadow-xl w-full max-w-7xl max-h-[90vh] flex flex-col">
                 <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
                     <div>
-                        <h2 class="text-lg font-medium text-gray-800">Panel administrativo del taller</h2>
+                        <h2 class="text-base font-semibold text-gray-800">
+                            Panel administrativo del taller
+                        </h2>
                         <p class="text-xs text-gray-500 mt-1">
-                            Vista general de citas agendadas y pagos registrados (sesión actual).
+                            Vista general de citas agendadas y pagos registrados obtenidos desde la base de datos.
                         </p>
                     </div>
                     <button id="closeAdminPanel" class="text-gray-400 hover:text-gray-600 transition-colors duración-300">
@@ -754,10 +756,10 @@
                                         <th class="px-3 py-2">Folio</th>
                                         <th class="px-3 py-2">Cliente</th>
                                         <th class="px-3 py-2">Teléfono</th>
-                                        <th class="px-3 py-2 hidden lg:table-cell">Dirección</th>
                                         <th class="px-3 py-2">Monto estimado</th>
                                         <th class="px-3 py-2">Estado del trabajo</th>
                                         <th class="px-3 py-2">Estado de pago</th>
+                                        <th class="px-3 py-2">Prioridad</th>
                                         <th class="px-3 py-2">Notas</th>
                                     </tr>
                                 </thead>
@@ -767,7 +769,7 @@
                             </table>
                         </div>
                         <p id="appointmentsEmpty" class="text-xs text-gray-500 mt-2 hidden">
-                            Aún no se han registrado citas en esta sesión.
+                            Aún no se han registrado citas en la base de datos.
                         </p>
                     </div>
 
@@ -791,13 +793,13 @@
                             </table>
                         </div>
                         <p id="paymentsEmpty" class="text-xs text-gray-500 mt-2 hidden">
-                            Aún no se han registrado pagos en esta sesión.
+                            Aún no se han registrado pagos en la base de datos.
                         </p>
                     </div>
                 </div>
 
                 <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 text-xs text-gray-500">
-                    Esta vista es una simulación de panel interno. En producción los datos se obtendrían desde la base de datos del sistema.
+                    Este panel muestra información obtenida directamente desde la base de datos del sistema en Railway.
                 </div>
             </div>
         </div>

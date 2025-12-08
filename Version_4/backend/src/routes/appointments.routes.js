@@ -153,7 +153,15 @@ router.post("/", async (req, res) => {
         };
 
         try {
-            await sendAppointmentConfirmationEmail(appointmentResponse);
+            await sendAppointmentConfirmationEmail(
+                appointmentResponse.email,
+                appointmentResponse.folio,
+                appointmentResponse.date,
+                appointmentResponse.time,
+                appointmentResponse.clientName,
+                appointmentResponse.estimatedAmount,
+                appointmentResponse.address
+            );
         } catch (emailError) {
             console.error("Error al enviar correo de confirmación de cita:", emailError);
         }

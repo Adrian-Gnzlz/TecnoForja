@@ -1,8 +1,10 @@
 // backend/src/routes/appointments.routes.js
 const express = require("express");
 const { pool } = require("../db");
+const { sendAppointmentConfirmationEmail } = require("../email");
 
 const router = express.Router();
+
 
 // Helper para generar el folio TF-AAAA-00001
 function generateFolio(id, dateStr) {
@@ -149,6 +151,13 @@ router.post("/", async (req, res) => {
             priority: "media",
             adminNotes: null
         };
+
+        try {
+            await sendAppointmentConfirmationEmail(appointmentResponse);
+        } catch (emailError) {
+            console.error("Error al enviar correo de confirmación de cita:", emailError);
+        }
+
 
         res.status(201).json(appointmentResponse);
     } catch (error) {

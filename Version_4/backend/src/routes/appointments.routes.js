@@ -182,11 +182,14 @@ router.post("/", async (req, res) => {
 router.put("/:id", async (req, res) => {
     const { id } = req.params;
     const {
-        workStatus,     // estado_trabajo
-        paymentStatus,  // estado_pago
-        priority,       // prioridad
-        adminNotes      // notas_admin
+        workStatus,
+        paymentStatus,
+        priority,
+        adminNotes,
+        estimatedAmount,
+        monto_estimado
     } = req.body;
+
 
     if (!id) {
         return res.status(400).json({ message: "Falta el id de la cita." });
@@ -195,19 +198,22 @@ router.put("/:id", async (req, res) => {
     try {
         await pool.query(
             `UPDATE citas
-             SET
+            SET
                 work_status    = COALESCE(?, work_status),
                 payment_status = COALESCE(?, payment_status),
                 prioridad      = COALESCE(?, prioridad),
-                admin_notes    = COALESCE(?, admin_notes)
-             WHERE id = ?`,
+                admin_notes    = COALESCE(?, admin_notes),
+                monto_estimado = COALESCE(?, monto_estimado)
+            WHERE id = ?`,
             [
                 workStatus || null,
                 paymentStatus || null,
                 priority || null,
                 adminNotes !== undefined ? adminNotes : null,
+                estimatedAmount ?? monto_estimado ?? null,
                 id
             ]
+
         );
 
         // Devolver la cita actualizada
@@ -225,7 +231,7 @@ router.put("/:id", async (req, res) => {
                 monto_estimado AS estimatedAmount,
                 estado AS status,
                 work_status AS workStatus,
-                payment_status AS PaymentStatus,
+                payment_status AS paymentStatus,
                 prioridad,
                 admin_notes AS adminNotes
             FROM citas

@@ -8,3 +8,35 @@ body {
 .nav-link {
     text-decoration: none;
 }
+
+
+
+
+
+/* Animación para el flayer */
+.flayer-slide-enter {
+    opacity: 0;
+    transform: translateY(-6px);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.flayer-slide-enter-active {
+    opacity: 1;
+    transform: translateY(0);
+}
+
+.flayer-slide-exit {
+    opacity: 1;
+    transform: translateY(0);
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+
+.flayer-slide-exit-active {
+    opacity: 0;
+    transform: translateY(6px);
+}
+
+/* Transición suave del texto del flayer */
+.flayer-fade {
+    transition: opacity 0.4s ease;
+}

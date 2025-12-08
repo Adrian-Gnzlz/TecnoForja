@@ -32,20 +32,75 @@
     <link rel="stylesheet" href="style.css">
 </head>
 <body class="min-h-screen bg-gray-100">
+
+    <!-- Flayer superior de anuncios -->
+    <div id="topFlayer" class="bg-secondary text-gray-100 text-xs md:text-sm">
+        <div class="container mx-auto px-4 py-2 flex items-center justify-between gap-4">
+            
+            <!-- Botón anterior -->
+            <button
+                id="flayerPrev"
+                type="button"
+                class="flex items-center justify-center h-6 w-6 rounded-full border border-gray-300/50 text-gray-100 hover:bg-gray-700 hover:border-gray-200 transition"
+                aria-label="Mensaje anterior"
+            >
+                <i class="fas fa-chevron-left text-[10px]"></i>
+            </button>
+
+            <!-- Mensaje central -->
+            <p
+                id="flayerMessage"
+                class="flex-1 text-center truncate flayer-fade"
+            >
+                Envíos sin costo adicional en proyectos seleccionados | Consulta condiciones
+            </p>
+
+            <!-- Botón siguiente -->
+            <button
+                id="flayerNext"
+                type="button"
+                class="flex items-center justify-center h-6 w-6 rounded-full border border-gray-300/50 text-gray-100 hover:bg-gray-700 hover:border-gray-200 transition"
+                aria-label="Mensaje siguiente"
+            >
+                <i class="fas fa-chevron-right text-[10px]"></i>
+            </button>
+
+        </div>
+    </div>
+
+
     <!-- Header y Navegación -->
-    <header class="bg-white shadow-sm border-b border-gray-200">
+    <header class="sticky top-0 z-40 bg-white shadow-sm border-b border-gray-200">
         <nav class="container mx-auto px-6 py-4">
             <div class="flex justify-between items-center">
                 <!-- Logo -->
-                <div class="flex items-center">
-                    <div class="w-12 h-12 bg-gray-800 rounded-lg flex items-center justify-center mr-3">
-                        <i class="fas fa-industry text-white text-xl"></i>
+                <div class="flex items-center gap-4">
+
+                    <!-- Botón menú hamburguesa -->
+                    <button
+                        id="openCategoryMenu"
+                        class="p-2 rounded-md border border-gray-300 text-gray-700 hover:bg-gray-100 transition-colors duration-200"
+                        aria-label="Abrir menú de categorías"
+                    >
+                        <i class="fas fa-bars"></i>
+                    </button>
+
+                    <!-- Logo nuevo TECNOFORJA -->
+                    <div class="flex items-center mr-3">
+                        <img src="assets/LOGO_SIN_LETRAS.png"
+                            alt="Logo TecnoForja"
+                            class="h-20 md:h-22 w-auto object-contain">
+
                     </div>
+
                     <div>
-                        <h1 class="text-xl font-bold text-gray-800">HERRERÍA ESPECIALIZADA</h1>
+                        <h1 class="text-xl font-bold text-gray-800">TECNOFORJA</h1>
                         <p class="text-sm text-gray-500">Calidad y Precisión desde 1995</p>
                     </div>
+
                 </div>
+
+
 
                 <!-- Navegación Principal -->
                 <div class="hidden md:flex space-x-8">
@@ -72,9 +127,96 @@
                 </button>
             </div>
         </nav>
+
+        <!-- Menú desplegable (PEGADO AL HEADER) -->
+        <div id="categoryMenu"
+            class="hidden absolute left-0 top-full w-full md:w-80 bg-white border-b border-gray-200 shadow-lg z-40">
+            <div class="p-4 space-y-3 text-sm text-gray-800">
+                <!-- Categoría 1: Trabajos de herrería -->
+                <div>
+                    <button
+                        class="w-full flex justify-between items-center py-2 px-2 rounded-sm hover:bg-gray-100 category-toggle"
+                        data-target="cat-herreria"
+                        type="button"
+                    >
+                        <span>Trabajos de herrería</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="cat-herreria" class="mt-1 ml-3 space-y-1 hidden">
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Puertas con herrería
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Barandales para patio
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Rejas para ventanas
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Portones con acabados de herrería
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Barandales para escalera
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Categoría 2: Estructuras metálicas -->
+                <div>
+                    <button
+                        class="w-full flex justify-between items-center py-2 px-2 rounded-sm hover:bg-gray-100 category-toggle"
+                        data-target="cat-estructuras"
+                        type="button"
+                    >
+                        <span>Estructuras metálicas</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="cat-estructuras" class="mt-1 ml-3 space-y-1 hidden">
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Instalación de cabrillas metálicas
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Instalación de lámina para techos
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Escaleras metálicas de acceso peatonal
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Categoría 3: Trabajos de soldadura -->
+                <div>
+                    <button
+                        class="w-full flex justify-between items-center py-2 px-2 rounded-sm hover:bg-gray-100 category-toggle"
+                        data-target="cat-soldadura"
+                        type="button"
+                    >
+                        <span>Trabajos de soldadura</span>
+                        <i class="fas fa-chevron-down text-xs"></i>
+                    </button>
+                    <div id="cat-soldadura" class="mt-1 ml-3 space-y-1 hidden">
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Bases para tinacos
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Puertas sin herrería
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Escaleras metálicas de mano
+                        </a>
+                        <a href="#servicios" class="block py-1 px-2 rounded-sm hover:bg-gray-100">
+                            Puertas de lujo
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </div>
     </header>
 
-    <section id="servicesSection" class="bg-gray-100 py-16 border-t border-gray-200">
+    
+
+
+    <section class="bg-gray-100 py-0 border-t border-gray-200">
         
 
     </section>
@@ -87,13 +229,19 @@
                 Más de 25 años ofreciendo soluciones metálicas personalizadas para proyectos residenciales y comerciales.
             </p>
             <div class="flex flex-col sm:flex-row gap-4 justify-center">
-                <button class="bg-white text-gray-800 hover:bg-gray-100 px-8 py-3.5 rounded-sm font-medium transition-colors duration-300 tracking-wide">
-                    <i class="fas fa-clipboard-list mr-2"></i>
-                    Solicitar cotización
-                </button>
-                <button class="bg-transparent border border-gray-300 hover:bg-gray-800 text-white px-8 py-3.5 rounded-sm font-medium transition-colors duration-300 tracking-wide">
-                    <i class="fas fa-briefcase mr-2"></i>
-                    Ver portafolio
+                <a href="#servicios"
+                class="inline-flex items-center justify-center bg-white text-gray-800 hover:bg-gray-100 px-8 py-3 rounded-sm font-medium shadow-md transition-colors duration-300 tracking-wide">
+                    <i class="fas fa-list mr-2"></i>
+                    Ver catálogo de trabajos
+                </a>
+
+                <button
+                    id="heroTourButton"
+                    type="button"
+                    class="inline-flex items-center justify-center bg-transparent border border-gray-300 hover:bg-gray-100 text-white hover:text-gray-900 px-8 py-3.5 rounded-sm font-medium transition-colors duration-300 tracking-wide"
+                >
+                    <i class="fas fa-info-circle mr-2"></i>
+                    Cómo funciona TecnoForja
                 </button>
             </div>
         </div>
@@ -112,7 +260,7 @@
                         </div>
                         <h3 class="text-xl font-medium text-gray-800">20% de descuento</h3>
                     </div>
-                    <p class="text-gray-600 mb-6 leading-relaxed">En proyectos de puertas con acabados de herrería a medida.</p>
+                    <p class="text-gray-600 mb-6 leading-relaxed">En acabados de herrería en puertas.</p>
                     <button class="w-full bg-gray-800 hover:bg-gray-900 text-white py-3 rounded-sm transition-colors duration-300 font-medium">
                         Solicitar información
                     </button>
@@ -152,7 +300,7 @@
     <!-- Catálogo de Productos -->
     <section id="servicios" class="py-20 bg-gray-50">
         <div class="container mx-auto px-6">
-            <h2 class="text-3xl font-light text-center text-gray-800 mb-16 tracking-wide">Nuestros servicios especializados</h2>
+            <h2  id="servicesSection" class="text-3xl font-light text-center text-gray-800 mb-16 tracking-wide">Nuestros servicios especializados</h2>
             
             <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
                 <!-- Producto 1 -->
@@ -341,33 +489,22 @@
     <!-- Footer -->
     <footer id="contacto" class="bg-gray-900 text-white py-16">
         <div class="container mx-auto px-6">
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-8">
+            <div class="grid grid-cols-1 md:grid-cols-3 gap-8">
                 <!-- Columna 1 -->
                 <div>
                     <h3 class="text-xl font-medium mb-6">Herrería Especializada</h3>
                     <p class="text-gray-400 mb-6 leading-relaxed">
                         Especialistas en soluciones metálicas personalizadas para proyectos residenciales y comerciales.
                     </p>
-                    <div class="flex space-x-4">
-                        <a href="#" class="text-gray-400 hover:text-white transition-colors duración-300">
-                            <i class="fab fa-linkedin text-lg"></i>
-                        </a>
-                        <a href="#" class="text-gray-400 hover:text-white transition-colors duración-300">
-                            <i class="fas fa-envelope text-lg"></i>
-                        </a>
-                        <a href="#" class="text-gray-400 hover:text-white transition-colors duración-300">
-                            <i class="fab fa-whatsapp text-lg"></i>
-                        </a>
-                    </div>
                 </div>
 
                 <!-- Columna 2 -->
                 <div>
                     <h3 class="text-xl font-medium mb-6">Información de contacto</h3>
                     <div class="space-y-3">
-                        <p class="text-gray-400"><i class="fas fa-map-marker-alt mr-3"></i> Av. Industrial #456, Zona Comercial</p>
-                        <p class="text-gray-400"><i class="fas fa-phone mr-3"></i> (555) 987-6543</p>
-                        <p class="text-gray-400"><i class="fas fa-envelope mr-3"></i> contacto@herreríaespecializada.com</p>
+                        <p class="text-gray-400"><i class="fas fa-map-marker-alt mr-3"></i> Calle Manuel López Velarde, Colonia Las Quintas</p>
+                        <p class="text-gray-400"><i class="fas fa-phone mr-3"></i> (627) 131-6188</p>
+                        <p class="text-gray-400"><i class="fas fa-envelope mr-3"></i> tecnoforja.parral@gmail.com</p>
                     </div>
                 </div>
 
@@ -385,25 +522,10 @@
                     </div>
                 </div>
 
-                <!-- Columna 4 -->
-                <div>
-                    <h3 class="text-xl font-medium mb-6">Enlaces</h3>
-                    <div class="space-y-2 text-sm">
-                        <a href="#" class="block text-gray-400 hover:text-white transition-colors duración-300">
-                            <i class="fas fa-chevron-right mr-2 text-xs"></i>Inicio
-                        </a>
-                        <a href="#servicios" class="block text-gray-400 hover:text-white transition-colors duración-300">
-                            <i class="fas fa-chevron-right mr-2 text-xs"></i>Servicios
-                        </a>
-                        <a href="#contacto" class="block text-gray-400 hover:text-white transition-colors duración-300">
-                            <i class="fas fa-chevron-right mr-2 text-xs"></i>Contacto
-                        </a>
-                    </div>
-                </div>
             </div>
             
             <div class="border-t border-gray-800 mt-12 pt-8 text-center text-gray-400 text-sm">
-                <p>&copy; 2024 Herrería Especializada S.A. de C.V. Todos los derechos reservados.</p>
+                <p>&copy; 2025 TecnoForja S.A. de C.V. Todos los derechos reservados.</p>
             </div>
         </div>
     </footer>
@@ -529,6 +651,53 @@
             </div>
         </div>
     </div>
+
+        <!-- Modal: Tour "Cómo funciona TecnoForja" -->
+    <div id="tourModal" class="fixed inset-0 bg-black/50 hidden z-50">
+        <div class="min-h-full flex items-center justify-center p-4">
+            <div class="bg-white rounded-sm shadow-xl w-full max-w-lg flex flex-col">
+                <!-- Header -->
+                <div class="flex justify-between items-center px-6 py-4 border-b border-gray-200">
+                    <h2 class="text-lg font-medium text-gray-800">
+                        Cómo funciona TecnoForja
+                    </h2>
+                    <button id="tourCloseButton" class="text-gray-400 hover:text-gray-600 transition-colors duration-300">
+                        <i class="fas fa-times"></i>
+                    </button>
+                </div>
+
+                <!-- Contenido -->
+                <div class="px-6 py-6 space-y-3">
+                    <p id="tourStepLabel" class="text-xs font-medium tracking-wide text-gray-500 uppercase">
+                        Paso 1 de 3
+                    </p>
+                    <h3 id="tourStepTitle" class="text-xl font-semibold text-gray-900">
+                        Paso 1: Explora el catálogo
+                    </h3>
+                    <p id="tourStepText" class="text-sm text-gray-700 leading-relaxed">
+                        Desde la sección de servicios puedes ver los distintos trabajos de herrería, estructuras metálicas y soldadura. Agrega al carrito los que correspondan a tu proyecto para iniciar tu cotización.
+                    </p>
+                </div>
+
+                <!-- Footer -->
+                <div class="px-6 py-4 border-t border-gray-200 bg-gray-50 flex justify-between items-center">
+                    <button
+                        id="tourPrevButton"
+                        class="px-4 py-2 text-sm border border-gray-300 rounded-sm text-gray-700 hover:bg-gray-100 transition-colors duration-300"
+                    >
+                        Anterior
+                    </button>
+                    <button
+                        id="tourNextButton"
+                        class="px-4 py-2 text-sm bg-gray-900 text-white rounded-sm hover:bg-black transition-colors duration-300"
+                    >
+                        Siguiente
+                    </button>
+                </div>
+            </div>
+        </div>
+    </div>
+
 
     <!-- Modal de pago -->
     <div id="paymentModal" class="fixed inset-0 bg-black/50 hidden z-50">

@@ -671,11 +671,42 @@ function renderAppointmentsTable() {
         tdPhone.className = "px-3 py-2";
         tdPhone.textContent = app.phone;
 
-        // Monto estimado
+        // Monto estimado (editable por el taller)
         const tdAmount = document.createElement("td");
         tdAmount.className = "px-3 py-2";
-        tdAmount.textContent =
-            "$" + (app.estimatedAmount || 0).toLocaleString("es-MX") + " MXN";
+
+        const amountWrapper = document.createElement("div");
+        amountWrapper.className = "flex items-center gap-1";
+
+        const amountInput = document.createElement("input");
+        amountInput.type = "number";
+        amountInput.min = "0";
+        amountInput.step = "1";
+        amountInput.className =
+            "w-24 border border-gray-300 rounded px-1 py-0.5 text-xs text-right";
+        amountInput.value =
+            app.estimatedAmount != null ? app.estimatedAmount : 0;
+
+        const amountLabel = document.createElement("span");
+        amountLabel.className = "text-xs text-gray-600";
+        amountLabel.textContent = "MXN";
+
+        amountInput.addEventListener("change", () => {
+            const newAmount = parseInt(amountInput.value, 10) || 0;
+
+            // Enviamos ambos nombres, por si el backend usa uno u otro
+            updateAppointmentFields(
+                app.id,
+                { estimatedAmount: newAmount, monto_estimado: newAmount },
+                "Monto estimado actualizado y guardado en la base de datos."
+            );
+        });
+
+        amountWrapper.appendChild(amountInput);
+        amountWrapper.appendChild(amountLabel);
+        tdAmount.appendChild(amountWrapper);
+
+
 
         // Estado del trabajo (select)
         const tdWorkStatus = document.createElement("td");
@@ -978,6 +1009,16 @@ async function openPaymentForExistingAppointment() {
             status: foundRaw.status
         };
 
+        // NUEVO: si el taller todavía no ha puesto monto, no abrimos el pago
+        const total = appointment.estimatedAmount || 0;
+        if (total <= 0) {
+            showNotification(
+                "Tu cita aún no tiene un presupuesto asignado. " +
+                "Comunícate con el taller para que registren el monto y puedas pagar en línea."
+            );
+            return;
+        }
+
         currentAppointment = appointment;
         preparePaymentModal(appointment);
         openModal("paymentModal");
@@ -1003,9 +1044,13 @@ async function registerPayment() {
     const amount = currentAppointment.estimatedAmount || 0;
 
     if (amount <= 0) {
-        showNotification("El monto a pagar debe ser mayor a 0.");
+        showNotification(
+            "Este trabajo todavía no tiene un presupuesto registrado. " +
+            "El taller debe capturar el monto antes de poder registrar el pago en línea."
+        );
         return;
     }
+
 
     // Si el método es tarjeta, primero procesamos con Stripe
     if (method === "tarjeta") {
@@ -1402,6 +1447,70 @@ function endOnboarding() {
 
 
 document.addEventListener("DOMContentLoaded", function () {
+
+    // Flayer superior con auto-rotación y fade suave
+    const flayerMessages = [
+        `Envíos sin costo adicional en proyectos seleccionados | <a href="index.html" class="underline font-medium">Consulta condiciones</a>`,
+        `Agenda tu visita de valoración sin costo | <a href="index.html" class="underline font-medium">Ver disponibilidad</a>`,
+        `Descuentos especiales en portones y estructuras metálicas | <a href="index.html" class="underline font-medium">Solicita tu cotización</a>`
+    ];
+
+
+    let flayerIndex = 0;
+    const flayerMessageEl = document.getElementById("flayerMessage");
+    const flayerPrevBtn = document.getElementById("flayerPrev");
+    const flayerNextBtn = document.getElementById("flayerNext");
+
+    function changeFlayerTo(index) {
+        if (!flayerMessageEl) return;
+
+        flayerMessageEl.style.opacity = "0";
+
+        setTimeout(() => {
+            flayerMessageEl.innerHTML = flayerMessages[index];
+            flayerMessageEl.style.opacity = "1";
+        }, 200);
+    }
+
+    function nextFlayer() {
+        flayerIndex = (flayerIndex + 1) % flayerMessages.length;
+        changeFlayerTo(flayerIndex);
+    }
+
+    function prevFlayer() {
+        flayerIndex = (flayerIndex - 1 + flayerMessages.length) % flayerMessages.length;
+        changeFlayerTo(flayerIndex);
+    }
+
+    if (flayerMessageEl) {
+        flayerMessageEl.style.opacity = "1"; // estado inicial
+
+        if (flayerNextBtn) {
+            flayerNextBtn.addEventListener("click", () => {
+                nextFlayer();
+            });
+        }
+
+        if (flayerPrevBtn) {
+            flayerPrevBtn.addEventListener("click", () => {
+                prevFlayer();
+            });
+        }
+
+        // Auto-rotación cada 5 segundos
+        setInterval(() => {
+            nextFlayer();
+        }, 5000);
+
+        // Primer mensaje
+        changeFlayerTo(flayerIndex);
+    }
+
+
+
+
+    
+
         // Inicializar Stripe si está disponible y existe el contenedor
     const cardElementContainer = document.getElementById("cardElement");
     if (window.Stripe && STRIPE_PUBLIC_KEY && cardElementContainer) {
@@ -1498,6 +1607,7 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
+    // En script.js, dentro de DOMContentLoaded, sustituye TODO el bloque de appointmentSubmitButton
     const appointmentSubmitButton = document.getElementById("appointmentSubmit");
     if (appointmentSubmitButton) {
         appointmentSubmitButton.addEventListener("click", async function (e) {
@@ -1505,11 +1615,25 @@ document.addEventListener("DOMContentLoaded", function () {
             const appointment = await createAppointmentFromForm();
             if (appointment) {
                 closeModal("appointmentModal");
-                preparePaymentModal(appointment);
-                openModal("paymentModal");
+
+                const total = appointment.estimatedAmount || 0;
+
+                // Si hay monto (>0), pasamos directo al pago
+                if (total > 0) {
+                    preparePaymentModal(appointment);
+                    openModal("paymentModal");
+                } else {
+                    // Si todo es "A cotizar", solo registramos la cita y listo
+                    showNotification(
+                        "Tu cita se registró correctamente. " +
+                        "Como los trabajos son a medida, el pago se realizará después de la visita, " +
+                        "cuando el taller registre el presupuesto en el sistema."
+                    );
+                }
             }
         });
     }
+
 
     const closePaymentButton = document.getElementById("closePayment");
     const paymentCancelButton = document.getElementById("paymentCancel");
@@ -1825,6 +1949,122 @@ document.addEventListener("DOMContentLoaded", function () {
     // Lanzar el tour automáticamente solo la primera vez
     startOnboarding(false);
 
+
+    // ------------------------------------------
+    // Menú de categorías (hamburguesa superior izquierda)
+    // ------------------------------------------
+    const openCategoryMenuBtn = document.getElementById("openCategoryMenu");
+    const categoryMenu = document.getElementById("categoryMenu");
+
+    if (openCategoryMenuBtn && categoryMenu) {
+        // Abrir/cerrar panel principal
+        openCategoryMenuBtn.addEventListener("click", function (e) {
+            e.stopPropagation(); // evitar que se cierre inmediatamente
+            categoryMenu.classList.toggle("hidden");
+        });
+
+        // Cerrar si se hace clic fuera del panel
+        document.addEventListener("click", function (e) {
+            if (!categoryMenu.classList.contains("hidden")) {
+                const clickInsideMenu = categoryMenu.contains(e.target);
+                const clickOnButton = openCategoryMenuBtn.contains(e.target);
+                if (!clickInsideMenu && !clickOnButton) {
+                    categoryMenu.classList.add("hidden");
+                }
+            }
+        });
+
+        // Cerrar con tecla Escape
+        document.addEventListener("keydown", function (e) {
+            if (e.key === "Escape" && !categoryMenu.classList.contains("hidden")) {
+                categoryMenu.classList.add("hidden");
+            }
+        });
+
+        // Desplegar/plegar cada categoría
+        const categoryToggles = document.querySelectorAll(".category-toggle");
+        categoryToggles.forEach(function (btn) {
+            const targetId = btn.dataset.target;
+            const panel = document.getElementById(targetId);
+
+            if (!panel) return;
+
+            btn.addEventListener("click", function (e) {
+                e.stopPropagation();
+                panel.classList.toggle("hidden");
+            });
+        });
+    }
+
+        const tourSteps = [
+        {
+            title: "Paso 1: Explora el catálogo",
+            text: "Desde la sección de servicios puedes ver los distintos trabajos..."
+        },
+        {
+            title: "Paso 2: Revisa tu carrito y agenda una visita",
+            text: "En el carrito verás un resumen de los trabajos seleccionados..."
+        },
+        {
+            title: "Paso 3: Recibe tu cotización y realiza el pago",
+            text: "Tras la visita, TecnoForja genera una cotización formal..."
+        }
+    ];
+
+    let tourCurrentStep = 0;
+
+    const heroTourButton = document.getElementById("heroTourButton");
+    const tourModal = document.getElementById("tourModal");
+    const tourCloseButton = document.getElementById("tourCloseButton");
+    const tourPrevButton = document.getElementById("tourPrevButton");
+    const tourNextButton = document.getElementById("tourNextButton");
+    const tourStepLabel = document.getElementById("tourStepLabel");
+    const tourStepTitle = document.getElementById("tourStepTitle");
+    const tourStepText = document.getElementById("tourStepText");
+
+    function renderTourStep() {
+        const step = tourSteps[tourCurrentStep];
+        tourStepLabel.textContent = `Paso ${tourCurrentStep + 1} de ${tourSteps.length}`;
+        tourStepTitle.textContent = step.title;
+        tourStepText.textContent = step.text;
+
+        tourPrevButton.disabled = tourCurrentStep === 0;
+        tourPrevButton.classList.toggle("opacity-50", tourCurrentStep === 0);
+        tourPrevButton.classList.toggle("cursor-not-allowed", tourCurrentStep === 0);
+
+        tourNextButton.textContent = 
+            tourCurrentStep === tourSteps.length - 1 ? "Finalizar" : "Siguiente";
+    }
+
+    function openTour() {
+        tourCurrentStep = 0;
+        renderTourStep();
+        openModal("tourModal");
+    }
+
+    if (heroTourButton) heroTourButton.addEventListener("click", openTour);
+    if (tourCloseButton) tourCloseButton.addEventListener("click", () => closeModal("tourModal"));
+    if (tourPrevButton) tourPrevButton.addEventListener("click", () => {
+        if (tourCurrentStep > 0) {
+            tourCurrentStep--;
+            renderTourStep();
+        }
+    });
+    if (tourNextButton) tourNextButton.addEventListener("click", () => {
+        if (tourCurrentStep < tourSteps.length - 1) {
+            tourCurrentStep++;
+            renderTourStep();
+        } else {
+            closeModal("tourModal");
+        }
+    });
+
+    // Cerrar clic fuera
+    if (tourModal) {
+        tourModal.addEventListener("click", (e) => {
+            if (e.target === tourModal) closeModal("tourModal");
+        });
+    }
 
     // Formato especial para número de tarjeta y vencimiento
     setupCardNumberFormatting();

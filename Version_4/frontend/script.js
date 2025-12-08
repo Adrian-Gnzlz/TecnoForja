@@ -1,6 +1,12 @@
 // frontend/script.js
 
-const API_BASE_URL = "http://localhost:4000/api";
+// frontend/script.js
+
+const API_BASE_URL = window.location.hostname === "127.0.0.1" ||
+                     window.location.hostname === "localhost"
+  ? "http://localhost:4000/api"                             // Modo desarrollo local
+  : "https://tecnoforja-production.up.railway.app/api";     // Backend en Railway
+
 
 
 // Clave pública de Stripe (reemplaza por la tuya de modo prueba)

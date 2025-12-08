@@ -1950,51 +1950,7 @@ document.addEventListener("DOMContentLoaded", function () {
     startOnboarding(false);
 
 
-    // ------------------------------------------
-    // Menú de categorías (hamburguesa superior izquierda)
-    // ------------------------------------------
-    const openCategoryMenuBtn = document.getElementById("openCategoryMenu");
-    const categoryMenu = document.getElementById("categoryMenu");
-
-    if (openCategoryMenuBtn && categoryMenu) {
-        // Abrir/cerrar panel principal
-        openCategoryMenuBtn.addEventListener("click", function (e) {
-            e.stopPropagation(); // evitar que se cierre inmediatamente
-            categoryMenu.classList.toggle("hidden");
-        });
-
-        // Cerrar si se hace clic fuera del panel
-        document.addEventListener("click", function (e) {
-            if (!categoryMenu.classList.contains("hidden")) {
-                const clickInsideMenu = categoryMenu.contains(e.target);
-                const clickOnButton = openCategoryMenuBtn.contains(e.target);
-                if (!clickInsideMenu && !clickOnButton) {
-                    categoryMenu.classList.add("hidden");
-                }
-            }
-        });
-
-        // Cerrar con tecla Escape
-        document.addEventListener("keydown", function (e) {
-            if (e.key === "Escape" && !categoryMenu.classList.contains("hidden")) {
-                categoryMenu.classList.add("hidden");
-            }
-        });
-
-        // Desplegar/plegar cada categoría
-        const categoryToggles = document.querySelectorAll(".category-toggle");
-        categoryToggles.forEach(function (btn) {
-            const targetId = btn.dataset.target;
-            const panel = document.getElementById(targetId);
-
-            if (!panel) return;
-
-            btn.addEventListener("click", function (e) {
-                e.stopPropagation();
-                panel.classList.toggle("hidden");
-            });
-        });
-    }
+    
 
         const tourSteps = [
         {
@@ -2065,6 +2021,229 @@ document.addEventListener("DOMContentLoaded", function () {
             if (e.target === tourModal) closeModal("tourModal");
         });
     }
+
+    // Paginación de productos (solo en productos.html)
+    if (document.body.dataset.page === "productos") {
+        const ITEMS_PER_PAGE = 9; // 3 filas x 3 columnas
+
+        const productCards = Array.from(document.querySelectorAll("article"))
+            .filter(card => card.querySelector(".add-to-cart"));
+
+        const paginationContainer = document.getElementById("productsPagination");
+        const prevBtn = document.getElementById("prevPage");
+        const nextBtn = document.getElementById("nextPage");
+        const pageNumbersContainer = document.getElementById("pageNumbers");
+
+        if (productCards.length > 0 &&
+            paginationContainer && prevBtn && nextBtn && pageNumbersContainer) {
+
+            let currentPage = 1;
+            const totalPages = Math.ceil(productCards.length / ITEMS_PER_PAGE);
+
+            function updateVisibility() {
+                const start = (currentPage - 1) * ITEMS_PER_PAGE;
+                const end = start + ITEMS_PER_PAGE;
+
+                productCards.forEach((card, index) => {
+                    if (index >= start && index < end) {
+                        card.classList.remove("hidden");
+                    } else {
+                        card.classList.add("hidden");
+                    }
+                });
+
+                prevBtn.disabled = currentPage === 1;
+                nextBtn.disabled = currentPage === totalPages;
+            }
+
+            function renderPageButtons() {
+                pageNumbersContainer.innerHTML = "";
+
+                for (let i = 1; i <= totalPages; i++) {
+                    const btn = document.createElement("button");
+                    btn.textContent = i;
+                    btn.className =
+                        "px-3 py-1 text-sm rounded-sm border " +
+                        (i === currentPage
+                            ? "bg-gray-900 text-white border-gray-900"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100");
+
+                    btn.addEventListener("click", () => {
+                        currentPage = i;
+                        updateVisibility();
+                        renderPageButtons();
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                    });
+
+                    pageNumbersContainer.appendChild(btn);
+                }
+            }
+
+            prevBtn.addEventListener("click", () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateVisibility();
+                    renderPageButtons();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+            });
+
+            nextBtn.addEventListener("click", () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateVisibility();
+                    renderPageButtons();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+            });
+
+            // Mostrar primera página al cargar
+            updateVisibility();
+            renderPageButtons();
+        }
+    }
+
+
+
+        // Paginación + filtros de productos (solo en productos.html)
+    if (document.body.dataset.page === "productos") {
+        const ITEMS_PER_PAGE = 9; // 3x3
+
+        const allCards = Array.from(
+            document.querySelectorAll("article[data-category]")
+        ).filter(card => card.querySelector(".add-to-cart"));
+
+        const filterCheckboxes = document.querySelectorAll(".category-filter");
+        const paginationContainer = document.getElementById("productsPagination");
+        const prevBtn = document.getElementById("prevPage");
+        const nextBtn = document.getElementById("nextPage");
+        const pageNumbersContainer = document.getElementById("pageNumbers");
+
+        if (allCards.length &&
+            paginationContainer && prevBtn && nextBtn && pageNumbersContainer) {
+
+            let currentPage = 1;
+            let activeCategories = new Set();
+            let filteredCards = [];
+            let totalPages = 1;
+
+            function computeFilteredCards() {
+                if (activeCategories.size === 0) {
+                    return allCards;
+                }
+                return allCards.filter(card =>
+                    activeCategories.has(card.dataset.category)
+                );
+            }
+
+            function updateVisibility() {
+                // ocultar todo
+                allCards.forEach(card => card.classList.add("hidden"));
+
+                if (filteredCards.length === 0) {
+                    paginationContainer.classList.add("hidden");
+                    return;
+                }
+
+                totalPages = Math.max(
+                    1,
+                    Math.ceil(filteredCards.length / ITEMS_PER_PAGE)
+                );
+
+                // mostrar solo los de la página actual
+                const start = (currentPage - 1) * ITEMS_PER_PAGE;
+                const end = start + ITEMS_PER_PAGE;
+
+                filteredCards.slice(start, end)
+                    .forEach(card => card.classList.remove("hidden"));
+
+                // estado de botones
+                prevBtn.disabled = currentPage === 1;
+                nextBtn.disabled = currentPage === totalPages;
+
+                prevBtn.classList.toggle("opacity-40", prevBtn.disabled);
+                prevBtn.classList.toggle("cursor-not-allowed", prevBtn.disabled);
+                nextBtn.classList.toggle("opacity-40", nextBtn.disabled);
+                nextBtn.classList.toggle("cursor-not-allowed", nextBtn.disabled);
+
+                // mostrar/ocultar contenedor de paginación
+                paginationContainer.classList.toggle(
+                    "hidden",
+                    filteredCards.length <= ITEMS_PER_PAGE
+                );
+            }
+
+            function renderPageButtons() {
+                pageNumbersContainer.innerHTML = "";
+
+                if (filteredCards.length === 0) return;
+
+                for (let i = 1; i <= totalPages; i++) {
+                    const btn = document.createElement("button");
+                    btn.textContent = i;
+                    btn.className =
+                        "px-3 py-1 text-sm rounded-sm border " +
+                        (i === currentPage
+                            ? "bg-gray-900 text-white border-gray-900"
+                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100");
+
+                    btn.addEventListener("click", () => {
+                        currentPage = i;
+                        updateVisibility();
+                        renderPageButtons();
+                        window.scrollTo({ top: 0, behavior: "smooth" });
+                    });
+
+                    pageNumbersContainer.appendChild(btn);
+                }
+            }
+
+            function refreshList() {
+                filteredCards = computeFilteredCards();
+                currentPage = 1; // siempre regresamos al inicio al cambiar filtros
+                updateVisibility();
+                renderPageButtons();
+            }
+
+            // Eventos de filtros
+            filterCheckboxes.forEach(chk => {
+                chk.addEventListener("change", () => {
+                    if (chk.checked) {
+                        activeCategories.add(chk.value);
+                    } else {
+                        activeCategories.delete(chk.value);
+                    }
+                    refreshList();
+                });
+            });
+
+            // Botones Anterior / Siguiente
+            prevBtn.addEventListener("click", () => {
+                if (currentPage > 1) {
+                    currentPage--;
+                    updateVisibility();
+                    renderPageButtons();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+            });
+
+            nextBtn.addEventListener("click", () => {
+                if (currentPage < totalPages) {
+                    currentPage++;
+                    updateVisibility();
+                    renderPageButtons();
+                    window.scrollTo({ top: 0, behavior: "smooth" });
+                }
+            });
+
+            // Estado inicial
+            filteredCards = computeFilteredCards();
+            updateVisibility();
+            renderPageButtons();
+        }
+    }
+
+
 
     // Formato especial para número de tarjeta y vencimiento
     setupCardNumberFormatting();

@@ -40,3 +40,45 @@ body {
 .flayer-fade {
     transition: opacity 0.4s ease;
 }
+
+/* Configuración general para la página de productos */
+body[data-page="productos"] {
+    /* Ajusta estos valores a tu gusto */
+    --card-min-width: 220px;    /* ancho mínimo de cada tarjeta */
+    --card-min-height: 340px;   /* altura mínima de cada tarjeta */
+    --card-gap: 22px;           /* separación entre tarjetas */
+    --card-padding: 18px;       /* padding interno (texto) */
+    --filters-width: 300px;     /* ancho del panel de filtros */
+    --layout-gap: 32px;         /* separación entre filtros y grid de productos */
+}
+
+/* Grid de tarjetas: columnas automáticas según el ancho disponible */
+body[data-page="productos"] .product-grid {
+    display: grid;
+    grid-template-columns: repeat(
+        auto-fit,
+        minmax(var(--card-min-width), 1fr)
+    );
+    gap: var(--card-gap);
+    align-items: stretch;
+}
+
+/* Altura mínima de cada tarjeta */
+body[data-page="productos"] .product-grid > article {
+    min-height: var(--card-min-height);
+}
+
+/* Padding del bloque de contenido (el div con clase p-5) */
+body[data-page="productos"] .product-grid > article > .p-5 {
+    padding: var(--card-padding);
+}
+
+/* Ancho del panel de filtros */
+body[data-page="productos"] aside > div {
+    max-width: var(--filters-width);
+}
+
+/* Separación entre la columna de filtros y la columna de productos */
+body[data-page="productos"] main > .grid {
+    gap: var(--layout-gap);
+}

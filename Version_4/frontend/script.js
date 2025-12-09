@@ -2022,98 +2022,18 @@ document.addEventListener("DOMContentLoaded", function () {
         });
     }
 
-    // Paginación de productos (solo en productos.html)
+        // Filtros + paginación de productos (solo en productos.html)
     if (document.body.dataset.page === "productos") {
         const ITEMS_PER_PAGE = 9; // 3 filas x 3 columnas
 
-        const productCards = Array.from(document.querySelectorAll("article"))
-            .filter(card => card.querySelector(".add-to-cart"));
-
-        const paginationContainer = document.getElementById("productsPagination");
-        const prevBtn = document.getElementById("prevPage");
-        const nextBtn = document.getElementById("nextPage");
-        const pageNumbersContainer = document.getElementById("pageNumbers");
-
-        if (productCards.length > 0 &&
-            paginationContainer && prevBtn && nextBtn && pageNumbersContainer) {
-
-            let currentPage = 1;
-            const totalPages = Math.ceil(productCards.length / ITEMS_PER_PAGE);
-
-            function updateVisibility() {
-                const start = (currentPage - 1) * ITEMS_PER_PAGE;
-                const end = start + ITEMS_PER_PAGE;
-
-                productCards.forEach((card, index) => {
-                    if (index >= start && index < end) {
-                        card.classList.remove("hidden");
-                    } else {
-                        card.classList.add("hidden");
-                    }
-                });
-
-                prevBtn.disabled = currentPage === 1;
-                nextBtn.disabled = currentPage === totalPages;
-            }
-
-            function renderPageButtons() {
-                pageNumbersContainer.innerHTML = "";
-
-                for (let i = 1; i <= totalPages; i++) {
-                    const btn = document.createElement("button");
-                    btn.textContent = i;
-                    btn.className =
-                        "px-3 py-1 text-sm rounded-sm border " +
-                        (i === currentPage
-                            ? "bg-gray-900 text-white border-gray-900"
-                            : "bg-white text-gray-700 border-gray-300 hover:bg-gray-100");
-
-                    btn.addEventListener("click", () => {
-                        currentPage = i;
-                        updateVisibility();
-                        renderPageButtons();
-                        window.scrollTo({ top: 0, behavior: "smooth" });
-                    });
-
-                    pageNumbersContainer.appendChild(btn);
-                }
-            }
-
-            prevBtn.addEventListener("click", () => {
-                if (currentPage > 1) {
-                    currentPage--;
-                    updateVisibility();
-                    renderPageButtons();
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                }
-            });
-
-            nextBtn.addEventListener("click", () => {
-                if (currentPage < totalPages) {
-                    currentPage++;
-                    updateVisibility();
-                    renderPageButtons();
-                    window.scrollTo({ top: 0, behavior: "smooth" });
-                }
-            });
-
-            // Mostrar primera página al cargar
-            updateVisibility();
-            renderPageButtons();
-        }
-    }
-
-
-
-        // Paginación + filtros de productos (solo en productos.html)
-    if (document.body.dataset.page === "productos") {
-        const ITEMS_PER_PAGE = 9; // 3x3
-
+        // Todas las tarjetas de producto, ya con data-category
         const allCards = Array.from(
             document.querySelectorAll("article[data-category]")
         ).filter(card => card.querySelector(".add-to-cart"));
 
-        const filterCheckboxes = document.querySelectorAll(".category-filter");
+        // Checkboxes de filtros (usan data-category)
+        const filterCheckboxes = document.querySelectorAll(".product-filter-category");
+
         const paginationContainer = document.getElementById("productsPagination");
         const prevBtn = document.getElementById("prevPage");
         const nextBtn = document.getElementById("nextPage");
@@ -2128,19 +2048,24 @@ document.addEventListener("DOMContentLoaded", function () {
             let totalPages = 1;
 
             function computeFilteredCards() {
+                // Si no hay filtros marcados, mostramos todos
                 if (activeCategories.size === 0) {
                     return allCards;
                 }
+                // Si hay una o más categorías, mostramos las que coincidan
                 return allCards.filter(card =>
                     activeCategories.has(card.dataset.category)
                 );
             }
 
             function updateVisibility() {
-                // ocultar todo
+                // Ocultar todas
                 allCards.forEach(card => card.classList.add("hidden"));
 
+                filteredCards = computeFilteredCards();
+
                 if (filteredCards.length === 0) {
+                    // Sin resultados: ocultamos paginación y salimos
                     paginationContainer.classList.add("hidden");
                     return;
                 }
@@ -2150,14 +2075,12 @@ document.addEventListener("DOMContentLoaded", function () {
                     Math.ceil(filteredCards.length / ITEMS_PER_PAGE)
                 );
 
-                // mostrar solo los de la página actual
                 const start = (currentPage - 1) * ITEMS_PER_PAGE;
                 const end = start + ITEMS_PER_PAGE;
 
                 filteredCards.slice(start, end)
                     .forEach(card => card.classList.remove("hidden"));
 
-                // estado de botones
                 prevBtn.disabled = currentPage === 1;
                 nextBtn.disabled = currentPage === totalPages;
 
@@ -2166,7 +2089,6 @@ document.addEventListener("DOMContentLoaded", function () {
                 nextBtn.classList.toggle("opacity-40", nextBtn.disabled);
                 nextBtn.classList.toggle("cursor-not-allowed", nextBtn.disabled);
 
-                // mostrar/ocultar contenedor de paginación
                 paginationContainer.classList.toggle(
                     "hidden",
                     filteredCards.length <= ITEMS_PER_PAGE
@@ -2200,18 +2122,21 @@ document.addEventListener("DOMContentLoaded", function () {
 
             function refreshList() {
                 filteredCards = computeFilteredCards();
-                currentPage = 1; // siempre regresamos al inicio al cambiar filtros
+                currentPage = 1; // cada vez que cambio filtros, vuelvo a página 1
                 updateVisibility();
                 renderPageButtons();
             }
 
-            // Eventos de filtros
+            // Eventos de los filtros
             filterCheckboxes.forEach(chk => {
                 chk.addEventListener("change", () => {
+                    const category = chk.dataset.category;
+                    if (!category) return;
+
                     if (chk.checked) {
-                        activeCategories.add(chk.value);
+                        activeCategories.add(category);
                     } else {
-                        activeCategories.delete(chk.value);
+                        activeCategories.delete(category);
                     }
                     refreshList();
                 });
@@ -2236,13 +2161,12 @@ document.addEventListener("DOMContentLoaded", function () {
                 }
             });
 
-            // Estado inicial
+            // Estado inicial: sin filtros → todas las tarjetas paginadas
             filteredCards = computeFilteredCards();
             updateVisibility();
             renderPageButtons();
         }
     }
-
 
 
     // Formato especial para número de tarjeta y vencimiento

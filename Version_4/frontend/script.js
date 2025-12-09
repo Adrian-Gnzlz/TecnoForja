@@ -2,10 +2,17 @@
 
 // frontend/script.js
 
-const API_BASE_URL = window.location.hostname === "127.0.0.1" ||
-                     window.location.hostname === "localhost"
-  ? "http://localhost:4000/api"                             // Modo desarrollo local
-  : "https://tecnoforja-production.up.railway.app/api";     // Backend en Railway
+// Detectar entorno local correctamente
+const isLocalHost =
+  window.location.hostname === "127.0.0.1" ||
+  window.location.hostname === "localhost";
+
+// Base URL correcta para API (local vs producción)
+const API_BASE_URL = isLocalHost
+  ? `http://${window.location.hostname}:4000/api`
+  : "https://tecnoforja-production.up.railway.app/api";
+
+
 
 
 
@@ -298,14 +305,30 @@ function findProductByName(name) {
     return productsLocal.find(p => p.name === name) || null;
 }
 
-function addToCart(productName, price) {
+function addToCart(productName, price, productId, productType) {
     const baseProduct = findProductByName(productName);
+    const numericPrice = Number(price) || 0;
+
+    // Id final: primero el que venga explícito, luego el del catálogo local, y por último uno generado
+    const finalId =
+        (typeof productId === "number" && !Number.isNaN(productId))
+            ? productId
+            : (baseProduct
+                ? baseProduct.id
+                : Date.now() + Math.floor(Math.random() * 1000));
+
+    // Tipo final: primero el que venga explícito, luego el del catálogo local, y por último inferido por precio
+    const finalType =
+        productType ||
+        (baseProduct
+            ? baseProduct.type
+            : (numericPrice > 0 ? "producto" : "servicio"));
 
     const product = {
-        id: baseProduct.id,
+        id: finalId,
         name: productName,
-        price: price,
-        type: baseProduct ? baseProduct.type : "servicio",
+        price: numericPrice,
+        type: finalType,
         quantity: 1
     };
 
@@ -315,6 +338,8 @@ function addToCart(productName, price) {
 
     showNotification("Servicio agregado a cotización: " + productName);
 }
+
+
 
 function removeFromCart(itemId) {
     const index = cart.findIndex(item => item.id === itemId);

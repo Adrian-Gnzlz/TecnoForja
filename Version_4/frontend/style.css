@@ -55,13 +55,31 @@ body[data-page="productos"] {
 /* Grid de tarjetas: columnas automáticas según el ancho disponible */
 body[data-page="productos"] .product-grid {
     display: grid;
-    grid-template-columns: repeat(
-        auto-fit,
-        minmax(var(--card-min-width), 1fr)
-    );
     gap: var(--card-gap);
     align-items: stretch;
 }
+
+/* 1 columna en móviles */
+@media (max-width: 639px) {
+    body[data-page="productos"] .product-grid {
+        grid-template-columns: 1fr;
+    }
+}
+
+/* 2 columnas en pantallas medianas */
+@media (min-width: 640px) and (max-width: 1023px) {
+    body[data-page="productos"] .product-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr));
+    }
+}
+
+/* 3 columnas en pantallas grandes */
+@media (min-width: 1024px) {
+    body[data-page="productos"] .product-grid {
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+    }
+}
+
 
 /* Altura mínima de cada tarjeta */
 body[data-page="productos"] .product-grid > article {

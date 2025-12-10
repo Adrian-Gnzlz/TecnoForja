@@ -2,6 +2,7 @@
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
+const path = require("path");                   // ← AGREGADO
 
 dotenv.config();
 
@@ -13,6 +14,24 @@ const app = express();
 
 app.use(cors());
 app.use(express.json());
+
+// =======================================
+// SERVIR ARCHIVOS ESTÁTICOS DEL FRONTEND
+// =======================================
+
+// Ruta absoluta a la carpeta backend/src
+const rootDir = path.resolve(__dirname, "..");     
+
+// Servir TODO el frontend
+app.use(express.static(path.join(rootDir, "frontend")));
+
+// Servir explícitamente la carpeta de imágenes
+app.use("/assets", express.static(path.join(rootDir, "frontend/assets")));
+
+
+// =======================================
+// RUTAS API
+// =======================================
 
 app.get("/api/status", (req, res) => {
     res.json({ status: "ok", message: "API TecnoForja funcionando" });

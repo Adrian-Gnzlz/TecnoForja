@@ -199,152 +199,142 @@
         </div>
     </section>
 
-    <!-- Catálogo de Productos -->
+        <!-- Trabajos más solicitados (Top productos) -->
     <section id="servicios" class="py-20 bg-gray-50">
         <div class="container mx-auto px-6">
-            <h2  id="servicesSection" class="text-3xl font-light text-center text-gray-800 mb-16 tracking-wide">Nuestros servicios especializados</h2>
-            
-            <div class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
-                <!-- Producto 1 -->
-                <div class="bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-lg transition-all duration-300">
-                    <img 
-                        src="https://picsum.photos/400/300?random=11" 
-                        alt="Bases estructurales para tinacos" 
-                        class="w-full h-48 object-cover"
-                        loading="lazy"
-                    >
-                    <div class="p-8">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4">Bases para tinacos</h3>
-                        <p class="text-gray-600 mb-6 leading-relaxed">
-                            Estructuras metálicas de alta resistencia diseñadas para soporte óptimo de tinacos.
-                        </p>
-                        <div class="flex justify-between items-center">
-                            <span class="text-2xl font-light text-gray-800">$1,200 MXN</span>
-                            <button class="add-to-cart bg-gray-800 hover:bg-gray-900 text-white px-5 py-2.5 rounded-sm transition-colors duration-300 font-medium" data-product="Bases para Tinacos" data-price="1200">
+            <div class="flex flex-col md:flex-row md:items-end md:justify-between mb-10 gap-6">
+                <div>
+                    <p class="text-[11px] tracking-[0.3em] uppercase text-gray-400 mb-2">
+                        Selección TecnoForja
+                    </p>
+                    <h2 id="servicesSection" class="text-3xl md:text-[2.1rem] font-light text-gray-900 leading-tight">
+                        Trabajos más solicitados
+                    </h2>
+                    <p class="text-gray-600 mt-3 max-w-xl text-sm md:text-base">
+                        Estos son algunos de los trabajos que más nos solicitan nuestros clientes.
+                        Todos se realizan a medida, con visita de valoración y cotización personalizada.
+                    </p>
+                </div>
+
+                <div class="hidden md:flex flex-col items-end gap-2 text-[11px] text-gray-500">
+                    <div class="flex items-center gap-2">
+                        <span class="inline-block w-2 h-2 rounded-full bg-gray-900"></span>
+                        <span>Top 3 trabajos del catálogo actual</span>
+                    </div>
+                    <div class="flex items-center gap-2">
+                        <i class="fas fa-check-circle text-[10px]"></i>
+    <span>Trabajos con mayor demanda entre nuestros clientes</span>
+                    </div>
+                </div>
+            </div>
+
+
+            <div id="topProductsSlider" class="relative max-w-5xl mx-auto">
+                <!-- Botón anterior -->
+                <button
+                    id="topProductsPrev"
+                    type="button"
+                    class="hidden md:flex items-center justify-center absolute -left-6 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-full shadow-sm w-10 h-10 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                >
+                    <span class="sr-only">Anterior</span>
+                    <i class="fas fa-chevron-left text-gray-700 text-sm"></i>
+                </button>
+
+                <!-- Botón siguiente -->
+                <button
+                    id="topProductsNext"
+                    type="button"
+                    class="hidden md:flex items-center justify-center absolute -right-6 top-1/2 -translate-y-1/2 bg-white border border-gray-200 rounded-full shadow-sm w-10 h-10 hover:bg-gray-50 hover:border-gray-300 transition-colors"
+                >
+                    <span class="sr-only">Siguiente</span>
+                    <i class="fas fa-chevron-right text-gray-700 text-sm"></i>
+                </button>
+
+                <!-- Tarjeta principal del slider -->
+                <div
+                    class="bg-white border border-gray-200 rounded-sm overflow-hidden shadow-sm flex flex-col md:flex-row transition-all duration-300"
+                >
+                    <!-- Imagen del producto -->
+                    <div class="md:w-2/5 w-full">
+                        <img
+                            id="topProductImage"
+                            src=""
+                            alt=""
+                            class="w-full h-64 sm:h-72 md:h-80 object-cover object-center"
+                            loading="lazy"
+                        />
+                    </div>
+
+                    <!-- Información del producto -->
+                    <div class="md:w-3/5 w-full p-8 flex flex-col justify-between">
+                        <div>
+                            <p
+                                id="topProductTag"
+                                class="text-[11px] tracking-[0.2em] uppercase text-indigo-600 mb-2"
+                            >
+                                Trabajo destacado
+                            </p>
+                            <h3
+                                id="topProductName"
+                                class="text-2xl font-semibold text-gray-900 mb-2"
+                            >
+                                Nombre del trabajo
+                            </h3>
+                            <p
+                                id="topProductCategory"
+                                class="text-sm text-gray-500 mb-3"
+                            >
+                                Categoría
+                            </p>
+                            <p
+                                id="topProductDescription"
+                                class="text-gray-600 leading-relaxed"
+                            >
+                                Descripción del trabajo seleccionado.
+                            </p>
+                        </div>
+
+                        <div class="flex items-center justify-between mt-6">
+                            <div>
+                                <span
+                                    id="topProductPriceLabel"
+                                    class="text-xs text-gray-500 uppercase tracking-wide block mb-1"
+                                >
+                                    Precio
+                                </span>
+                                <span
+                                    id="topProductPrice"
+                                    class="text-2xl font-light text-gray-900"
+                                >
+                                    A cotizar
+                                </span>
+                            </div>
+
+                            <button
+                                id="topProductCta"
+                                type="button"
+                                class="add-to-cart bg-gray-900 hover:bg-gray-800 text-white px-5 py-2.5 rounded-sm text-sm font-medium flex items-center"
+                                data-product=""
+                                data-price="0"
+                            >
                                 <i class="fas fa-plus mr-2"></i>
-                                Agregar
+                                Cotizar este trabajo
                             </button>
                         </div>
                     </div>
                 </div>
 
-                <!-- Producto 2 -->
-                <div class="bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-lg transition-all duration-300">
-                    <img 
-                        src="https://picsum.photos/400/300?random=12" 
-                        alt="Puertas personalizadas con herrería" 
-                        class="w-full h-48 object-cover"
-                        loading="lazy"
-                    >
-                    <div class="p-8">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4">Puertas a medida</h3>
-                        <p class="text-gray-600 mb-6 leading-relaxed">
-                            Puertas personalizadas con acabados de herrería artística y funcional.
-                        </p>
-                        <div class="flex justify-between items-center">
-                            <span class="text-2xl font-light text-gray-800">A cotizar</span>
-                            <button class="add-to-cart bg-gray-800 hover:bg-gray-900 text-white px-5 py-2.5 rounded-sm transition-colors duration-300 font-medium" data-product="Puertas a Medida" data-price="0">
-                                <i class="fas fa-plus mr-2"></i>
-                                Cotizar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Producto 3 -->
-                <div class="bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-lg transition-all duration-300">
-                    <img 
-                        src="https://picsum.photos/400/300?random=13" 
-                        alt="Ventanas con protección metálica" 
-                        class="w-full h-48 object-cover"
-                        loading="lazy"
-                    >
-                    <div class="p-8">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4">Ventanas a medida</h3>
-                        <p class="text-gray-600 mb-6 leading-relaxed">
-                            Ventanas personalizadas con protección y diseño en herrería industrial.
-                        </p>
-                        <div class="flex justify-between items-center">
-                            <span class="text-2xl font-light text-gray-800">A cotizar</span>
-                            <button class="add-to-cart bg-gray-800 hover:bg-gray-900 text-white px-5 py-2.5 rounded-sm transition-colors duration-300 font-medium" data-product="Ventanas a Medida" data-price="0">
-                                <i class="fas fa-plus mr-2"></i>
-                                Cotizar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Producto 4 -->
-                <div class="bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-lg transition-all duración-300">
-                    <img 
-                        src="https://picsum.photos/400/300?random=14" 
-                        alt="Rejas de protección para ventanas" 
-                        class="w-full h-48 object-cover"
-                        loading="lazy"
-                    >
-                    <div class="p-8">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4">Rejas para ventana</h3>
-                        <p class="text-gray-600 mb-6 leading-relaxed">
-                            Sistemas de protección y elegancia para ventanas residenciales y comerciales.
-                        </p>
-                        <div class="flex justify-between items-center">
-                            <span class="text-2xl font-light text-gray-800">A cotizar</span>
-                            <button class="add-to-cart bg-gray-800 hover:bg-gray-900 text-white px-5 py-2.5 rounded-sm transition-colors duración-300 font-medium" data-product="Rejas para Ventana" data-price="0">
-                                <i class="fas fa-plus mr-2"></i>
-                                Cotizar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Producto 5 -->
-                <div class="bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-lg transition-all duración-300">
-                    <img 
-                        src="https://picsum.photos/400/300?random=15" 
-                        alt="Portones metálicos empresariales" 
-                        class="w-full h-48 object-cover"
-                        loading="lazy"
-                    >
-                    <div class="p-8">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4">Portones industriales</h3>
-                        <p class="text-gray-600 mb-6 leading-relaxed">
-                            Portones robustos con acabados profesionales para uso residencial e industrial.
-                        </p>
-                        <div class="flex justify-between items-center">
-                            <span class="text-2xl font-light text-gray-800">A cotizar</span>
-                            <button class="add-to-cart bg-gray-800 hover:bg-gray-900 text-white px-5 py-2.5 rounded-sm transition-colors duración-300 font-medium" data-product="Portones" data-price="0">
-                                <i class="fas fa-plus mr-2"></i>
-                                Cotizar
-                            </button>
-                        </div>
-                    </div>
-                </div>
-
-                <!-- Producto 6 -->
-                <div class="bg-white border border-gray-200 rounded-sm overflow-hidden hover:shadow-lg transition-all duración-300">
-                    <img 
-                        src="https://picsum.photos/400/300?random=16" 
-                        alt="Rejas decorativas para jardín" 
-                        class="w-full h-48 object-cover"
-                        loading="lazy"
-                    >
-                    <div class="p-8">
-                        <h3 class="text-xl font-medium text-gray-800 mb-4">Rejas para jardín</h3>
-                        <p class="text-gray-600 mb-6 leading-relaxed">
-                            Vallas metálicas decorativas para delimitar y embellecer espacios exteriores.
-                        </p>
-                        <div class="flex justify-between items-center">
-                            <span class="text-2xl font-light text-gray-800">A cotizar</span>
-                            <button class="add-to-cart bg-gray-800 hover:bg-gray-900 text-white px-5 py-2.5 rounded-sm transition-colors duración-300 font-medium" data-product="Rejas para Jardín" data-price="0">
-                                <i class="fas fa-plus mr-2"></i>
-                                Cotizar
-                            </button>
-                        </div>
-                    </div>
+                <!-- Indicadores (puntos) -->
+                <div
+                    id="topProductsDots"
+                    class="flex items-center justify-center space-x-2 mt-6"
+                >
+                    <!-- Se llenan desde JS -->
                 </div>
             </div>
         </div>
     </section>
+
 
     <section class="bg-white border-t border-gray-200 py-12 mt-12">
         <div class="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">

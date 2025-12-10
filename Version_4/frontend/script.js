@@ -1617,7 +1617,7 @@ document.addEventListener("DOMContentLoaded", function () {
 
     
 
-        // Inicializar Stripe si está disponible y existe el contenedor
+    // Inicializar Stripe si está disponible y existe el contenedor
     const cardElementContainer = document.getElementById("cardElement");
     if (window.Stripe && STRIPE_PUBLIC_KEY && cardElementContainer) {
         try {
@@ -1629,6 +1629,191 @@ document.addEventListener("DOMContentLoaded", function () {
             console.error("Error inicializando Stripe:", error);
         }
     }
+
+
+        // Slider de "Trabajos más solicitados" en la página de inicio
+    const topProductsSlider = document.getElementById("topProductsSlider");
+    if (topProductsSlider) {
+        initTopProductsSlider().catch((error) => {
+            console.error("Error inicializando slider de trabajos más solicitados:", error);
+        });
+    }
+
+    async function initTopProductsSlider() {
+        const topImage = document.getElementById("topProductImage");
+        const topName = document.getElementById("topProductName");
+        const topCategory = document.getElementById("topProductCategory");
+        const topDescription = document.getElementById("topProductDescription");
+        const topTag = document.getElementById("topProductTag");
+        const topPrice = document.getElementById("topProductPrice");
+        const topPriceLabel = document.getElementById("topProductPriceLabel");
+        const topCta = document.getElementById("topProductCta");
+        const topPrev = document.getElementById("topProductsPrev");
+        const topNext = document.getElementById("topProductsNext");
+        const topDotsContainer = document.getElementById("topProductsDots");
+
+        if (
+            !topImage ||
+            !topName ||
+            !topCategory ||
+            !topDescription ||
+            !topTag ||
+            !topPrice ||
+            !topPriceLabel ||
+            !topCta ||
+            !topDotsContainer
+        ) {
+            console.warn("Elementos del slider de trabajos más solicitados no encontrados.");
+            return;
+        }
+
+        // 1) Obtener catálogo desde la API (tabla productos)
+        const response = await fetch(`${API_BASE_URL}/catalogo`);
+        if (!response.ok) {
+            throw new Error("No se pudo obtener el catálogo desde la API");
+        }
+        const catalogData = await response.json();
+
+        if (!Array.isArray(catalogData) || catalogData.length === 0) {
+            console.warn("Catálogo vacío, no se puede inicializar el slider de trabajos más solicitados.");
+            return;
+        }
+
+        // 2) Seleccionar qué productos mostrar como "más solicitados"
+        //    Los nombres deben coincidir con los de tu tabla productos.
+        const featuredNames = [
+            "Bases para tinacos",
+            "Portones con acabados de herrería",
+            "Rejas para ventana"
+        ];
+
+        let topProducts = featuredNames
+            .map(name => catalogData.find(p => p.nombre === name))
+            .filter(Boolean);
+
+        // Si por algún motivo no se encuentran los tres, se rellena con los primeros del catálogo
+        if (topProducts.length < 3) {
+            const usados = new Set(topProducts.map(p => p.id));
+            catalogData.forEach(p => {
+                if (topProducts.length < 3 && !usados.has(p.id)) {
+                    topProducts.push(p);
+                    usados.add(p.id);
+                }
+            });
+        }
+
+        if (topProducts.length === 0) {
+            console.warn("No se encontraron productos destacados para el slider.");
+            return;
+        }
+
+        let topProductIndex = 0;
+
+        // 3) Crear indicadores (puntos)
+        topDotsContainer.innerHTML = "";
+        topProducts.forEach((_, index) => {
+            const dot = document.createElement("button");
+            dot.type = "button";
+            dot.dataset.index = String(index);
+            dot.className =
+                "w-2.5 h-2.5 rounded-full border transition-all duration-200";
+            dot.addEventListener("click", () => {
+                topProductIndex = index;
+                renderTopProduct();
+                resetTopProductsAutoplay();
+            });
+            topDotsContainer.appendChild(dot);
+        });
+
+        function updateDots() {
+            const dots = topDotsContainer.querySelectorAll("button");
+            dots.forEach((dot, index) => {
+                if (index === topProductIndex) {
+                    dot.classList.add("bg-gray-900", "border-gray-900");
+                    dot.classList.remove("bg-gray-200", "border-gray-400");
+                } else {
+                    dot.classList.add("bg-gray-200", "border-gray-400");
+                    dot.classList.remove("bg-gray-900", "border-gray-900");
+                }
+            });
+        }
+
+        function renderTopProduct() {
+            const p = topProducts[topProductIndex];
+
+            // imagen_url viene directo de la BD
+            if (p.imagen_url) {
+                topImage.src = p.imagen_url;
+            } else {
+                // En caso de que algún producto no tenga imagen en BD
+                topImage.src = "https://via.placeholder.com/800x600?text=TecnoForja";
+            }
+            topImage.alt = p.nombre || "Trabajo destacado TecnoForja";
+
+            topName.textContent = p.nombre || "Trabajo destacado";
+            topCategory.textContent = p.categoria || p.badge || "";
+            topDescription.textContent = p.descripcion || "";
+            topTag.textContent = "Trabajo más solicitado";
+
+            const precio = typeof p.price === "number" ? p.price : p.precio_base;
+
+            if (precio && precio > 0) {
+                topPriceLabel.textContent = "Desde";
+                topPrice.textContent = `$${precio.toLocaleString("es-MX")} MXN`;
+            } else {
+                topPriceLabel.textContent = "Precio";
+                topPrice.textContent = "A cotizar";
+            }
+
+            // Vincular con el carrito (usa la misma lógica de botones .add-to-cart)
+            topCta.setAttribute("data-product", p.nombre || "Trabajo TecnoForja");
+            topCta.setAttribute("data-price", String(precio || 0));
+
+            updateDots();
+        }
+
+        function goToNextTopProduct() {
+            topProductIndex = (topProductIndex + 1) % topProducts.length;
+            renderTopProduct();
+        }
+
+        function goToPrevTopProduct() {
+            topProductIndex =
+                (topProductIndex - 1 + topProducts.length) % topProducts.length;
+            renderTopProduct();
+        }
+
+        if (topNext) {
+            topNext.addEventListener("click", () => {
+                goToNextTopProduct();
+                resetTopProductsAutoplay();
+            });
+        }
+
+        if (topPrev) {
+            topPrev.addEventListener("click", () => {
+                goToPrevTopProduct();
+                resetTopProductsAutoplay();
+            });
+        }
+
+        // Auto-rotación cada 8 segundos
+        let topProductsAutoplay = null;
+
+        function resetTopProductsAutoplay() {
+            if (topProductsAutoplay) {
+                clearInterval(topProductsAutoplay);
+            }
+            topProductsAutoplay = setInterval(goToNextTopProduct, 8000);
+        }
+
+        renderTopProduct();
+        resetTopProductsAutoplay();
+    }
+
+
+
+
 
     const addToCartButtons = document.querySelectorAll(".add-to-cart");
 

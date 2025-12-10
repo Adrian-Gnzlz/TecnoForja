@@ -7,12 +7,15 @@ CREATE DATABASE IF NOT EXISTS tecnoforja_db
 USE tecnoforja_db;
 
 CREATE TABLE IF NOT EXISTS productos (
-  id INT AUTO_INCREMENT PRIMARY KEY,
-  nombre VARCHAR(150) NOT NULL,
-  descripcion TEXT,
-  precio_base DECIMAL(10,2) DEFAULT 0,
-  tipo ENUM('producto','servicio') DEFAULT 'servicio',
-  activo TINYINT(1) DEFAULT 1
+id INT AUTO_INCREMENT PRIMARY KEY,
+nombre VARCHAR(150) NOT NULL,
+descripcion TEXT,
+precio_base DECIMAL(10,2) DEFAULT 0,
+tipo ENUM('producto','servicio') DEFAULT 'servicio',
+categoria ENUM('herreria','estructuras','soldadura') DEFAULT 'herreria',
+badge VARCHAR(50) DEFAULT NULL,
+imagen_url VARCHAR(255) DEFAULT NULL,
+activo TINYINT(1) DEFAULT 1
 );
 
 CREATE TABLE IF NOT EXISTS citas (

@@ -14,12 +14,24 @@ document.addEventListener("DOMContentLoaded", () => {
   const pageNumbersContainer = document.getElementById("pageNumbers");
   const categoryCheckboxes = document.querySelectorAll(".product-filter-category");
 
+    // Referencias al modal de detalle de producto
+  const productDetailModal = document.getElementById("productDetailModal");
+  const modalProductName = document.getElementById("modalProductName");
+  const modalProductCategory = document.getElementById("modalProductCategory");
+  const modalProductPrice = document.getElementById("modalProductPrice");
+  const modalProductDescription = document.getElementById("modalProductDescription");
+  const modalProductNote = document.getElementById("modalProductNote");
+  const modalAddToCartBtn = document.getElementById("modalAddToCartBtn");
+  const modalCloseBtn = document.getElementById("modalCloseBtn");
+  const modalOverlay = document.getElementById("productDetailOverlay");
+
+
   if (!productsGrid || !paginationContainer || !prevPageBtn || !nextPageBtn || !pageNumbersContainer) {
     return;
   }
 
-  // 1) Catálogo de productos
-  const catalog = [
+  // 1) Catálogo de productos (fallback estático por si la API falla)
+  const FALLBACK_CATALOG = [
     // Trabajos de herrería
     {
       id: 101,
@@ -27,7 +39,8 @@ document.addEventListener("DOMContentLoaded", () => {
       description: "Puertas metálicas personalizadas con diseño de herrería decorativa y seguridad.",
       category: "herreria",
       badge: "Herrería",
-      price: 0
+      price: 0,
+      image: "assets/productos/puertas-herreria.jpg"
     },
     {
       id: 102,
@@ -139,6 +152,71 @@ document.addEventListener("DOMContentLoaded", () => {
     }
   ];
 
+
+
+
+
+    // Catálogo real que usará la página (BD o fallback)
+  let catalog = [];
+
+  const CATEGORY_LABELS = {
+    herreria: "Trabajos de herrería",
+    estructuras: "Estructuras metálicas",
+    soldadura: "Trabajos de soldadura"
+  };
+
+  async function loadCatalogFromApi() {
+    try {
+      if (typeof API_BASE_URL === "undefined") {
+        console.warn("API_BASE_URL no definido; usando catálogo estático.");
+        catalog = FALLBACK_CATALOG;
+        return;
+      }
+
+      const response = await fetch(`${API_BASE_URL}/catalogo`);
+      if (!response.ok) {
+        throw new Error("Respuesta no OK al obtener catálogo");
+      }
+
+      const data = await response.json();
+      if (!Array.isArray(data) || data.length === 0) {
+        console.warn("Catálogo vacío desde API; usando catálogo estático.");
+        catalog = FALLBACK_CATALOG;
+        return;
+      }
+
+      catalog = data.map((row, index) => {
+        const rawPrice = row.price ?? row.precio_base ?? 0;
+        const numericPrice = Number(rawPrice) || 0;
+        const category = row.categoria || "herreria";
+        const badge = row.badge || CATEGORY_LABELS[category] || null;
+        const type =
+          row.tipo || (numericPrice > 0 ? "producto" : "servicio");
+
+        return {
+          id: row.id ?? index + 1,
+          name: row.nombre || row.name || "",
+          description: row.descripcion || row.description || "",
+          category,
+          badge,
+          price: numericPrice,
+          type,
+          image:
+            row.imagen_url || "assets/productos/placeholder-producto.jpg"
+        };
+      });
+    } catch (error) {
+      console.error(
+        "Error al cargar catálogo desde API, usando catálogo estático:",
+        error
+      );
+      catalog = FALLBACK_CATALOG;
+    }
+  }
+
+
+
+
   const ITEMS_PER_PAGE = 9; // 3 filas x 3 columnas
   let currentPage = 1;
   let activeCategories = new Set();
@@ -170,16 +248,25 @@ document.addEventListener("DOMContentLoaded", () => {
 
     const start = (currentPage - 1) * ITEMS_PER_PAGE;
     const end = start + ITEMS_PER_PAGE;
-    const pageItems = filteredProducts.slice(start, end);
+    const pageProducts = filteredProducts.slice(start, end);
 
     productsGrid.innerHTML = "";
 
-    pageItems.forEach(product => {
+    pageProducts.forEach((product) => {
       const article = document.createElement("article");
       article.className =
         "product-card bg-white rounded-lg shadow-md border border-gray-100 overflow-hidden " +
         "group transform transition-transform duration-200 hover:-translate-y-1 hover:shadow-lg hover:border-gray-200 cursor-pointer";
-      article.dataset.category = product.category;
+
+      // Información básica como data-atributos para el modal
+      article.dataset.category = product.category || "";
+      article.dataset.name = product.name || "";
+      article.dataset.description = product.description || "";
+      article.dataset.price = String(product.price || 0);
+      article.dataset.type = product.type || "servicio";
+      article.dataset.id = String(product.id || "");
+      article.dataset.image = product.image || "assets/productos/placeholder-producto.jpg";
+
 
       const priceLabel =
         product.price > 0
@@ -188,9 +275,15 @@ document.addEventListener("DOMContentLoaded", () => {
 
       article.innerHTML = `
         <div class="h-28 bg-gradient-to-br from-gray-900 to-gray-700 flex items-center justify-center relative">
+          ${
+            product.badge
+              ? `
           <span class="absolute top-3 left-3 px-3 py-1 text-[11px] tracking-wide rounded-full bg-black/50 text-gray-100 uppercase">
             ${product.badge}
           </span>
+          `
+              : ""
+          }
           <i class="fas fa-tools text-3xl text-gray-100 opacity-90"></i>
         </div>
         <div class="p-5 flex flex-col justify-between h-[210px]">
@@ -198,46 +291,55 @@ document.addEventListener("DOMContentLoaded", () => {
             <h3 class="text-base font-semibold text-gray-800 mb-1">
               ${product.name}
             </h3>
+            <p class="text-xs uppercase tracking-wide text-gray-400 mb-2">
+              ${product.categoryLabel || CATEGORY_LABELS[product.category] || product.badge || ""}
+            </p>
+
             <p class="text-sm text-gray-600">
               ${product.description}
             </p>
           </div>
+
           <div class="mt-4 flex items-center justify-between">
             <span class="text-sm font-medium text-gray-800">
               ${priceLabel}
             </span>
 
-
             <button
-                class="add-to-cart bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-sm text-xs font-medium add-to-cart-btn"
-                data-product="${product.name}"
-                data-price="${product.price}"
-                data-id="${product.id}"
-                data-type="${product.type}"
+              class="bg-gray-800 hover:bg-gray-900 text-white px-4 py-2 rounded-sm text-xs font-medium add-to-cart-btn"
+              data-product="${product.name}"
+              data-price="${product.price}"
+              data-id="${product.id}"
+              data-type="${product.type}"
+              type="button"
             >
-                <i class="fas fa-plus text-xs"></i>
-                Cotizar
+              <i class="fas fa-plus text-xs"></i>
+              Cotizar
             </button>
-
-
           </div>
         </div>
       `;
 
-        const button = article.querySelector(".add-to-cart-btn");
-        if (button) {
-            button.addEventListener("click", (e) => {
-                e.preventDefault();
+      // Botón Cotizar: sigue usando el carrito actual
+      const button = article.querySelector(".add-to-cart-btn");
+      if (button) {
+        button.addEventListener("click", (e) => {
+          e.preventDefault();
+          e.stopPropagation(); // Importante: evitar que abra el modal
 
-                const name = button.dataset.product;
-                const price = Number(button.dataset.price || 0);
-                const id = Number(button.dataset.id);
-                const type = button.dataset.type;
+          const name = button.dataset.product;
+          const price = Number(button.dataset.price || 0);
+          const id = Number(button.dataset.id);
+          const type = button.dataset.type;
 
-                addToCart(name, price, id, type);
-            });
-        }
+          addToCart(name, price, id, type);
+        });
+      }
 
+      // Click en la tarjeta (pero no en el botón): abrir modal
+      article.addEventListener("click", () => {
+        openProductDetailModalFromCard(article);
+      });
 
       productsGrid.appendChild(article);
     });
@@ -314,7 +416,92 @@ document.addEventListener("DOMContentLoaded", () => {
     });
   });
 
+    // 6) Lógica del modal de detalle de producto
+  function openProductDetailModalFromCard(card) {
+    if (!productDetailModal) return;
+
+    const name = card.dataset.name || "";
+    const description =
+      card.dataset.description ||
+      "Trabajo fabricado a medida según las necesidades específicas del cliente.";
+    const category = card.dataset.category || "";
+    const price = Number(card.dataset.price || 0);
+    const type = card.dataset.type || "servicio";
+
+    if (modalProductName) modalProductName.textContent = name;
+    if (modalProductCategory)
+      modalProductCategory.textContent = category ? "Categoría: " + category : "";
+
+    if (modalProductPrice) {
+      modalProductPrice.textContent =
+        price > 0
+          ? "Precio estimado: $" + price.toLocaleString("es-MX") + " MXN"
+          : "Precio: A cotizar de forma personalizada.";
+    }
+
+    if (modalProductDescription) {
+      modalProductDescription.textContent = description;
+    }
+
+    // Configurar botón de agregar al carrito desde el modal
+    if (modalAddToCartBtn) {
+      modalAddToCartBtn.dataset.product = name;
+      modalAddToCartBtn.dataset.price = String(price || 0);
+      modalAddToCartBtn.dataset.type = type;
+      modalAddToCartBtn.dataset.id = card.dataset.id || "";
+    }
+
+    productDetailModal.classList.remove("hidden");
+  }
+
+  function closeProductDetailModal() {
+    if (!productDetailModal) return;
+    productDetailModal.classList.add("hidden");
+  }
+
+  // Eventos del modal
+  if (modalCloseBtn) {
+    modalCloseBtn.addEventListener("click", () => {
+      closeProductDetailModal();
+    });
+  }
+
+  if (modalOverlay) {
+    modalOverlay.addEventListener("click", () => {
+      closeProductDetailModal();
+    });
+  }
+
+  if (modalAddToCartBtn) {
+    modalAddToCartBtn.addEventListener("click", (e) => {
+      e.preventDefault();
+
+      const name = modalAddToCartBtn.dataset.product || "";
+      const price = Number(modalAddToCartBtn.dataset.price || 0);
+      const id = Number(modalAddToCartBtn.dataset.id || 0);
+      const type = modalAddToCartBtn.dataset.type || "servicio";
+
+      if (name) {
+        addToCart(name, price, id, type);
+      }
+
+      closeProductDetailModal();
+    });
+  }
+
+  // Cerrar con Escape
+  document.addEventListener("keydown", (e) => {
+    if (e.key === "Escape") {
+      closeProductDetailModal();
+    }
+  });
+
+
   // 7) Inicializar
-  filteredProducts = computeFilteredProducts();
-  renderProducts();
+(async () => {
+await loadCatalogFromApi();
+filteredProducts = computeFilteredProducts();
+renderProducts();
+})();
+
 });

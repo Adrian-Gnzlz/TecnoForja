@@ -25,6 +25,48 @@ let stripeCardElement = null;
 
 
 const cart = [];
+const CART_STORAGE_KEY = "tecnoforja_cart";
+
+function saveCartToStorage() {
+    try {
+        const plainCart = cart.map(item => ({
+            id: item.id,
+            name: item.name,
+            price: item.price,
+            type: item.type,
+            quantity: item.quantity || 1
+        }));
+        sessionStorage.setItem(CART_STORAGE_KEY, JSON.stringify(plainCart));
+    } catch (e) {
+        console.error("No se pudo guardar el carrito en sessionStorage:", e);
+    }
+}
+
+function loadCartFromStorage() {
+    try {
+        const stored = sessionStorage.getItem(CART_STORAGE_KEY);
+        if (!stored) return;
+
+        const parsed = JSON.parse(stored);
+        if (!Array.isArray(parsed)) return;
+
+        cart.length = 0;
+        parsed.forEach(item => {
+            if (!item || !item.name) return;
+            cart.push({
+                id: item.id ?? (Date.now() + Math.floor(Math.random() * 1000)),
+                name: item.name,
+                price: Number(item.price) || 0,
+                type: item.type || (Number(item.price) > 0 ? "producto" : "servicio"),
+                quantity: item.quantity || 1
+            });
+        });
+    } catch (e) {
+        console.error("No se pudo leer el carrito desde sessionStorage:", e);
+    }
+}
+
+
 const productsLocal = [
     { id: 1, name: "Bases para Tinacos", price: 1200, type: "producto" },
     { id: 2, name: "Puertas a Medida", price: 0, type: "servicio" },
@@ -309,7 +351,6 @@ function addToCart(productName, price, productId, productType) {
     const baseProduct = findProductByName(productName);
     const numericPrice = Number(price) || 0;
 
-    // Id final: primero el que venga explícito, luego el del catálogo local, y por último uno generado
     const finalId =
         (typeof productId === "number" && !Number.isNaN(productId))
             ? productId
@@ -317,7 +358,6 @@ function addToCart(productName, price, productId, productType) {
                 ? baseProduct.id
                 : Date.now() + Math.floor(Math.random() * 1000));
 
-    // Tipo final: primero el que venga explícito, luego el del catálogo local, y por último inferido por precio
     const finalType =
         productType ||
         (baseProduct
@@ -333,6 +373,7 @@ function addToCart(productName, price, productId, productType) {
     };
 
     cart.push(product);
+    saveCartToStorage();
     updateCartCount();
     renderCart();
 
@@ -341,20 +382,25 @@ function addToCart(productName, price, productId, productType) {
 
 
 
+
 function removeFromCart(itemId) {
     const index = cart.findIndex(item => item.id === itemId);
     if (index !== -1) {
         cart.splice(index, 1);
+        saveCartToStorage();
         updateCartCount();
         renderCart();
     }
 }
 
+
 function clearCart() {
     cart.length = 0;
+    saveCartToStorage();
     updateCartCount();
     renderCart();
 }
+
 
 function renderCart() {
     const cartItemsContainer = document.getElementById("cartItems");
@@ -1473,8 +1519,14 @@ function endOnboarding() {
 
 document.addEventListener("DOMContentLoaded", function () {
 
+    // Cargar carrito desde localStorage al abrir cualquier página
+    loadCartFromStorage();
+    updateCartCount();
+    renderCart();
+
     // Flayer superior con auto-rotación y fade suave
     const flayerMessages = [
+
         `Envíos sin costo adicional en proyectos seleccionados | <a href="index.html" class="underline font-medium">Consulta condiciones</a>`,
         `Agenda tu visita de valoración sin costo | <a href="index.html" class="underline font-medium">Ver disponibilidad</a>`,
         `Descuentos especiales en portones y estructuras metálicas | <a href="index.html" class="underline font-medium">Solicita tu cotización</a>`

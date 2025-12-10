@@ -24,6 +24,8 @@ document.addEventListener("DOMContentLoaded", () => {
   const modalAddToCartBtn = document.getElementById("modalAddToCartBtn");
   const modalCloseBtn = document.getElementById("modalCloseBtn");
   const modalOverlay = document.getElementById("productDetailOverlay");
+  const modalProductImage = document.getElementById("modalProductImage");
+
 
 
   if (!productsGrid || !paginationContainer || !prevPageBtn || !nextPageBtn || !pageNumbersContainer) {
@@ -417,7 +419,7 @@ document.addEventListener("DOMContentLoaded", () => {
   });
 
     // 6) Lógica del modal de detalle de producto
-  function openProductDetailModalFromCard(card) {
+    function openProductDetailModalFromCard(card) {
     if (!productDetailModal) return;
 
     const name = card.dataset.name || "";
@@ -443,6 +445,15 @@ document.addEventListener("DOMContentLoaded", () => {
       modalProductDescription.textContent = description;
     }
 
+    // Imagen del producto (con placeholder por defecto)
+    const imageUrl =
+      card.dataset.image || "assets/productos/placeholder-producto.jpg";
+
+    if (modalProductImage) {
+      modalProductImage.src = imageUrl;
+      modalProductImage.alt = name || "Trabajo de herrería";
+    }
+
     // Configurar botón de agregar al carrito desde el modal
     if (modalAddToCartBtn) {
       modalAddToCartBtn.dataset.product = name;
@@ -453,6 +464,7 @@ document.addEventListener("DOMContentLoaded", () => {
 
     productDetailModal.classList.remove("hidden");
   }
+
 
   function closeProductDetailModal() {
     if (!productDetailModal) return;

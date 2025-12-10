@@ -195,6 +195,33 @@ function showNotification(message) {
     }, 3000);
 }
 
+function getStripeErrorMessage(error) {
+    if (!error) {
+        return "Ocurrió un problema al procesar el pago con tarjeta. Intenta nuevamente o utiliza otro método de pago.";
+    }
+
+    const declineCode = (error.decline_code || error.code || "").toLowerCase();
+
+    switch (declineCode) {
+        case "insufficient_funds":
+            return "La tarjeta no tiene fondos suficientes para completar el pago. Utiliza otra tarjeta o un método de pago diferente.";
+        case "card_declined":
+        case "generic_decline":
+            return "La tarjeta fue rechazada por el banco emisor. Verifica los datos o utiliza otra tarjeta.";
+        case "incorrect_cvc":
+        case "invalid_cvc":
+            return "El código de seguridad (CVC) de la tarjeta es incorrecto. Verifica los datos e inténtalo de nuevo.";
+        case "expired_card":
+            return "La tarjeta ha expirado. Utiliza una tarjeta con fecha de vencimiento vigente.";
+        default:
+            if (error.message) {
+                return "Error al procesar el pago con tarjeta: " + error.message;
+            }
+            return "Ocurrió un problema al procesar el pago con tarjeta. Intenta nuevamente o utiliza otro método de pago.";
+    }
+}
+
+
 function formatDateForDisplay(dateStr) {
     if (!dateStr) return "";
 
@@ -1169,9 +1196,11 @@ async function registerPayment() {
 
             if (error) {
                 console.error("Error Stripe confirmCardPayment:", error);
-                showNotification("Error al procesar el pago con tarjeta: " + (error.message || ""));
+                const friendlyMessage = getStripeErrorMessage(error);
+                showNotification(friendlyMessage);
                 return;
             }
+
 
             if (!paymentIntent || paymentIntent.status !== "succeeded") {
                 showNotification("El pago con tarjeta no se completó correctamente.");
